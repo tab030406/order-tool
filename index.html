@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>訂單 PDF 解析工具</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<style>
+:root{--bg:#fafaf8;--s:#fff;--s2:#f4f4f0;--bd:#e8e8e2;--bd2:#d0d0c8;--tx:#1a1a18;--mu:#888;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--info:#1967d2;--info-l:#e8f0fe;--err:#d93025;--err-l:#fce8e6;--warn:#b45309;--warn-l:#fffbeb;--r:8px;--rl:12px;--sans:'Noto Sans TC',sans-serif;--mono:monospace}
+@media(prefers-color-scheme:dark){:root{--bg:#1a1a1a;--s:#2d2d2d;--s2:#242424;--bd:#3d3d3d;--bd2:#4d4d4d;--tx:#e8e8e8;--mu:#888;--acc:#8ab4f8;--acc-l:#1a2d4d;--ok:#81c995;--ok-l:#1a3a24;--info:#8ab4f8;--info-l:#1a2d4d;--err:#f28b82;--err-l:#4d1a18;--warn:#fcd34d;--warn-l:#2d2000}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;min-height:100vh}
+.shell{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:22px;font-weight:600;margin-bottom:4px}
+.sub{font-size:13px;color:var(--mu);margin-bottom:1.5rem}
+.box{background:var(--s);border:1px solid var(--bd);border-radius:var(--rl);padding:1.25rem;margin-bottom:1.25rem}
+.box-title{font-size:11px;font-weight:600;margin-bottom:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.inp{flex:1;padding:9px 12px;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r);color:var(--tx);font-size:13px;font-family:var(--mono);outline:none;transition:border-color .15s}
+.inp:focus{border-color:var(--acc)}
+.hint{font-size:11px;color:var(--mu);line-height:1.6}
+.hint a{color:var(--acc);text-decoration:none}.hint a:hover{text-decoration:underline}
+.as{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.as-ok{background:var(--ok-l);color:var(--ok)}.as-err{background:var(--err-l);color:var(--err)}.as-no{background:var(--s2);color:var(--mu);border:1px solid var(--bd2)}
+.dz{border:1.5px dashed var(--bd2);border-radius:var(--r);padding:2rem 1rem;text-align:center;cursor:pointer;position:relative;transition:all .15s}
+.dz:hover,.dz.drag{border-color:var(--acc);background:var(--acc-l)}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz h3{font-size:14px;font-weight:500;margin:8px 0 4px}
+.dz p{font-size:12px;color:var(--mu)}
+.flist{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.frow{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);font-size:13px}
+.nm{flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sz{font-size:11px;color:var(--mu);font-family:var(--mono)}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.bw{background:var(--s2);color:var(--mu);border:1px solid var(--bd2)}
+.br{background:var(--info-l);color:var(--info)}.bo{background:var(--ok-l);color:var(--ok)}.be{background:var(--err-l);color:var(--err)}
+.rmb{cursor:pointer;color:var(--mu);background:none;border:none;font-size:18px;line-height:1;padding:0 2px}.rmb:hover{color:var(--err)}
+.acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:var(--sans);transition:all .15s;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{opacity:.88}.btn-p:disabled{opacity:.35;cursor:not-allowed}
+.btn-o{background:var(--s);color:var(--tx);border:1px solid var(--bd2)}.btn-o:hover{background:var(--s2)}
+.btn-g{background:var(--s2);color:var(--tx);border:1px solid var(--bd2)}.btn-g:hover{background:var(--bd)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.pb{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.pf{height:100%;background:var(--acc);border-radius:3px;transition:width .4s}
+.plog{font-size:12px;font-family:var(--mono);color:var(--mu);max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.plog .ok{color:var(--ok)}.plog .err{color:var(--err)}.plog .run{color:var(--info)}
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);margin-bottom:16px}
+.tab{padding:8px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--mu);transition:all .15s}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc);font-weight:500}
+.tab-panel{display:none}.tab-panel.active{display:block}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.sc{background:var(--s2);border-radius:var(--r);padding:14px 16px;border:1px solid var(--bd)}
+.sc .lb{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.sc .vl{font-size:22px;font-weight:600}
+/* Order cards */
+.cards{display:flex;flex-direction:column;gap:8px}
+.oc{border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.och{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;background:var(--s);transition:background .12s;user-select:none}
+.och:hover{background:var(--s2)}
+.oi{flex:1;min-width:0}
+.on{font-weight:500;font-size:14px}
+.oid{font-family:var(--mono);font-size:11px;color:var(--mu);margin-top:1px}
+.ototal{font-weight:600;font-size:15px;flex-shrink:0}
+.chev{font-size:16px;color:var(--mu);transition:transform .2s;flex-shrink:0}
+.oc.open .chev{transform:rotate(180deg)}
+.ocb{display:none;border-top:1px solid var(--bd);background:var(--s2)}
+.oc.open .ocb{display:block}
+.ig{display:grid;grid-template-columns:1fr 1fr;font-size:12px}
+.ir{display:flex;gap:8px;padding:7px 16px;border-bottom:1px solid var(--bd)}
+.ir.full{grid-column:span 2}
+.ir .k{color:var(--mu);white-space:nowrap;min-width:64px;flex-shrink:0}
+.ir .v{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ititle{font-size:11px;font-weight:600;color:var(--mu);padding:8px 16px 4px;text-transform:uppercase;letter-spacing:.06em}
+.irow{display:flex;align-items:center;gap:8px;padding:7px 16px;border-top:1px solid var(--bd);font-size:12px}
+.iname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.isku{font-size:10px;color:var(--mu);font-family:var(--mono);flex-shrink:0}
+.iqty{width:28px;text-align:right;color:var(--mu);flex-shrink:0}
+.iamt{width:75px;text-align:right;font-weight:500;flex-shrink:0}
+.sums{padding:8px 16px 12px;border-top:1px solid var(--bd);font-size:12px;display:flex;flex-direction:column;gap:4px}
+.sr{display:flex;justify-content:space-between}
+.sr.tot{font-weight:600;font-size:13px;padding-top:6px;border-top:1px solid var(--bd);margin-top:2px}
+.red{color:var(--err)}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;flex-shrink:0}
+.tok{background:var(--ok-l);color:var(--ok)}.tinfo{background:var(--info-l);color:var(--info)}
+/* History */
+.hist-list{display:flex;flex-direction:column;gap:6px}
+.hist-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);font-size:13px;cursor:pointer;transition:background .12s}
+.hist-row:hover{background:var(--bd)}
+.hist-info{flex:1;min-width:0}
+.hist-title{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-meta{font-size:11px;color:var(--mu);margin-top:1px;font-family:var(--mono)}
+.hist-amt{font-weight:500;font-size:13px;flex-shrink:0}
+.hist-del{cursor:pointer;color:var(--mu);background:none;border:none;font-size:16px;padding:0 2px;flex-shrink:0}.hist-del:hover{color:var(--err)}
+.empty-hint{font-size:13px;color:var(--mu);text-align:center;padding:2rem 0}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--bd2);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <h1>📋 訂單 PDF 批次解析</h1>
+  <p class="sub">Google Gemini AI · 支援歷史記錄 · 無需伺服器</p>
+ 
+  <!-- Settings -->
+  <div class="box">
+    <div class="box-title">⚙ 設定（自動儲存）</div>
+    <div class="row">
+      <input type="text" class="inp" id="worker-url" placeholder="https://xxx.deno.dev 或 https://xxx.workers.dev" oninput="onSettingChange()">
+      <span class="as as-no" id="wu-st">Proxy 網址</span>
+    </div>
+    <div class="row">
+      <input type="password" class="inp" id="api-key" placeholder="Gemini API Key (AIzaSy...)" oninput="onSettingChange()">
+      <span class="as as-no" id="ak-st">API Key</span>
+    </div>
+    <p class="hint">
+      Proxy 網址：Deno Deploy 或 Cloudflare Worker 皆可 ·
+      API Key 免費取得：<a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a>
+    </p>
+  </div>
+ 
+  <!-- Tabs -->
+  <div class="box" style="padding-bottom:1.25rem">
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('parse')">📤 解析</div>
+      <div class="tab" onclick="switchTab('history')">🗂 歷史記錄</div>
+    </div>
+ 
+    <!-- Parse Tab -->
+    <div class="tab-panel active" id="tab-parse">
+      <div class="dz" id="dz">
+        <input type="file" id="fi" accept=".pdf" multiple>
+        <div style="font-size:28px;opacity:.25">📂</div>
+        <h3>拖曳訂單 PDF 到這裡</h3>
+        <p>可多選，支援批次上傳</p>
+      </div>
+      <div class="flist" id="fl"></div>
+      <div class="acts" id="acts" style="display:none">
+        <button class="btn btn-p" id="run-btn" onclick="startParsing()" disabled>⚡ 開始解析</button>
+        <button class="btn btn-o" onclick="clearAll()">清除</button>
+      </div>
+ 
+      <div id="prog-wrap" style="display:none;margin-top:14px">
+        <div class="box-title" id="prog-title">解析中…</div>
+        <div class="pb"><div class="pf" id="pf" style="width:0%"></div></div>
+        <div class="plog" id="plog"></div>
+      </div>
+ 
+      <div id="result-wrap" style="display:none;margin-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="box-title" style="margin:0">✅ 解析結果</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-g btn-sm" onclick="exportCSV()">↓ CSV</button>
+            <button class="btn btn-g btn-sm" onclick="saveToHistory()">💾 儲存記錄</button>
+          </div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="cards" id="cards"></div>
+      </div>
+    </div>
+ 
+    <!-- History Tab -->
+    <div class="tab-panel" id="tab-history">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="box-title" style="margin:0">解析歷史記錄</div>
+        <button class="btn btn-o btn-sm" onclick="clearHistory()">全部清除</button>
+      </div>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
+  </div>
+</div>
+ 
+<script>
+const _w=console.warn.bind(console);
+console.warn=(...a)=>{if(typeof a[0]==='string'&&a[0].includes('fake worker'))return;_w(...a)};
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+ 
+let files=[], orders=[];
+ 
+// ── 設定讀取/儲存 ──
+function loadSettings(){
+  try{
+    const wu=localStorage.getItem('workerUrl')||'';
+    const ak=localStorage.getItem('apiKey')||'';
+    if(wu)document.getElementById('worker-url').value=wu;
+    if(ak)document.getElementById('api-key').value=ak;
+    onSettingChange();
+  }catch(e){}
+}
+function onSettingChange(){
+  const wu=document.getElementById('worker-url').value.trim();
+  const ak=document.getElementById('api-key').value.trim();
+  const wust=document.getElementById('wu-st');
+  const akst=document.getElementById('ak-st');
+  wust.className=!wu?'as as-no':wu.startsWith('https://')?'as as-ok':'as as-err';
+  wust.textContent=!wu?'未設定':wu.startsWith('https://')?'✓ 已設定':'格式有誤';
+  akst.className=!ak?'as as-no':ak.length>10?'as as-ok':'as as-err';
+  akst.textContent=!ak?'未設定':ak.length>10?'✓ 已設定':'太短';
+  try{localStorage.setItem('workerUrl',wu);localStorage.setItem('apiKey',ak)}catch(e){}
+  updateBtn();
+}
+const getWorkerUrl=()=>document.getElementById('worker-url').value.trim();
+const getKey=()=>document.getElementById('api-key').value.trim();
+ 
+// ── Tabs ──
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['parse','history'][i]===t));
+  document.querySelectorAll('.tab-panel').forEach((el,i)=>el.classList.toggle('active',['tab-parse','tab-history'][i]==='tab-'+t));
+  if(t==='history')renderHistory();
+}
+ 
+// ── File handling ──
+const dz=document.getElementById('dz'),fi=document.getElementById('fi');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');addFiles([...e.dataTransfer.files].filter(f=>f.name.endsWith('.pdf')))});
+fi.addEventListener('change',e=>{addFiles([...e.target.files]);fi.value=''});
+ 
+function addFiles(nf){nf.forEach(f=>{if(!files.find(x=>x.name===f.name&&x.size===f.size))files.push(f)});renderFiles();updateBtn()}
+function removeFile(i){files.splice(i,1);renderFiles();updateBtn()}
+function clearAll(){files=[];orders=[];renderFiles();updateBtn();document.getElementById('prog-wrap').style.display='none';document.getElementById('result-wrap').style.display='none'}
+function renderFiles(){
+  document.getElementById('acts').style.display=files.length?'flex':'none';
+  document.getElementById('fl').innerHTML=files.map((f,i)=>`
+    <div class="frow" id="fr${i}">
+      <span>📄</span><span class="nm">${f.name}</span>
+      <span class="sz">${(f.size/1024).toFixed(1)} KB</span>
+      <span class="badge bw" id="bd${i}">待處理</span>
+      <button class="rmb" onclick="removeFile(${i})">×</button>
+    </div>`).join('');
+}
+function setBadge(i,c,t){const b=document.getElementById('bd'+i);if(b){b.className='badge '+c;b.textContent=t}}
+function updateBtn(){
+  const wu=getWorkerUrl(),ak=getKey();
+  document.getElementById('run-btn').disabled=!(wu.startsWith('https://')&&ak.length>10&&files.length>0);
+}
+ 
+// ── Progress ──
+function log(cls,msg){const el=document.getElementById('plog');const d=document.createElement('div');d.className=cls;d.textContent=msg;el.appendChild(d);el.scrollTop=el.scrollHeight}
+function setProg(p,t){document.getElementById('pf').style.width=p+'%';if(t)document.getElementById('prog-title').textContent=t}
+ 
+// ── PDF text extraction ──
+async function extractText(file){
+  const ab=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  let txt='';
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const c=await page.getTextContent();
+    txt+=c.items.map(i=>i.str).join(' ')+'\n';
+  }
+  return txt.trim();
+}
+ 
+// ── Gemini via proxy ──
+async function callGemini(workerUrl,apiKey,text){
+  const payload={
+    contents:[{parts:[{text:`請解析以下訂單文字，只回傳純 JSON 陣列，不要任何說明或 markdown：
+[{"order_id":"訂單編號去掉#","order_date":"YYYY-MM-DD","order_status":"訂單狀態","payment_status":"付款狀態","buyer_name":"訂購人","buyer_phone":"電話","buyer_email":"Email","recipient":"收件人","recipient_phone":"收件人電話","address":"完整地址","shipping_method":"送貨方式","payment_method":"付款方式","items":[{"name":"商品名","sku":"貨號","qty":1,"unit_price":100,"subtotal":100}],"order_subtotal":100,"discount":0,"shipping_fee":0,"total":100,"_source":"檔名"}]
+ 
+${text}`}]}],
+    generationConfig:{temperature:0}
+  };
+  const res=await fetch(workerUrl,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({apiKey,payload})
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.error||`HTTP ${res.status}`)}
+  const data=await res.json();
+  const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  const clean=raw.replace(/```json|```/g,'').trim();
+  const s=clean.indexOf('['),e=clean.lastIndexOf(']');
+  if(s<0||e<=s)throw new Error('回傳格式錯誤');
+  return JSON.parse(clean.slice(s,e+1));
+}
+ 
+// ── Main parse ──
+async function startParsing(){
+  const wu=getWorkerUrl(),ak=getKey();
+  if(!wu||!ak||!files.length)return;
+  orders=[];
+  document.getElementById('prog-wrap').style.display='block';
+  document.getElementById('result-wrap').style.display='none';
+  document.getElementById('plog').innerHTML='';
+  const btn=document.getElementById('run-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>解析中…';
+  setProg(0,'抽取 PDF 文字中…');
+ 
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    setProg(Math.round(i/files.length*85),`解析中… ${i+1}/${files.length}`);
+    setBadge(i,'br','解析中…');
+    log('run',`▶ ${f.name}`);
+    try{
+      const txt=await extractText(f);
+      log('run',`  抽取 ${txt.length} 字，送 Gemini…`);
+      const parsed=await callGemini(wu,ak,txt);
+      parsed.forEach(o=>{if(!o._source)o._source=f.name;orders.push(o)});
+      setBadge(i,'bo',`✓ ${parsed.length} 筆`);
+      log('ok',`  ✓ 成功 ${parsed.length} 筆`);
+    }catch(e){
+      setBadge(i,'be','❌ 失敗');
+      log('err',`  ❌ ${e.message}`);
+    }
+  }
+  setProg(100,'');
+  document.getElementById('prog-title').textContent=`完成！成功 ${orders.length} 筆`;
+  btn.disabled=false;btn.innerHTML='⚡ 重新解析';
+  if(orders.length)renderResults();
+}
+ 
+// ── Render results ──
+const nt=v=>(v!==''&&v!=null&&Number(v)!==0)?'NT$'+Math.round(Number(v)).toLocaleString():'—';
+ 
+function renderResults(data){
+  const os=data||orders;
+  const total=os.reduce((s,o)=>s+(Number(o.total)||0),0);
+  const ic=os.reduce((s,o)=>s+(o.items?.length||0),0);
+  document.getElementById('stats').innerHTML=`
+    <div class="sc"><div class="lb">訂單數</div><div class="vl">${os.length}</div></div>
+    <div class="sc"><div class="lb">商品種類</div><div class="vl">${ic}</div></div>
+    <div class="sc"><div class="lb">總金額</div><div class="vl">NT$${Math.round(total).toLocaleString()}</div></div>`;
+  document.getElementById('cards').innerHTML=os.map((o,idx)=>`
+    <div class="oc" id="oc${idx}">
+      <div class="och" onclick="tog(${idx})">
+        <div class="oi"><div class="on">${o.buyer_name||'—'}</div><div class="oid">#${o.order_id} · ${o.order_date}</div></div>
+        <span class="tag tok">${o.order_status||''}</span>
+        <span class="tag tinfo">${o.payment_status||''}</span>
+        <div class="ototal">NT$${Math.round(Number(o.total)||0).toLocaleString()}</div>
+        <span class="chev">⌄</span>
+      </div>
+      <div class="ocb">
+        <div class="ig">
+          <div class="ir"><span class="k">電話</span><span class="v">${o.buyer_phone||'—'}</span></div>
+          <div class="ir"><span class="k">付款方式</span><span class="v">${o.payment_method||'—'}</span></div>
+          <div class="ir"><span class="k">收件人</span><span class="v">${o.recipient||'—'}</span></div>
+          <div class="ir"><span class="k">送貨方式</span><span class="v">${o.shipping_method||'—'}</span></div>
+          <div class="ir full"><span class="k">地址</span><span class="v">${o.address||'—'}</span></div>
+          <div class="ir full"><span class="k">Email</span><span class="v">${o.buyer_email||'—'}</span></div>
+        </div>
+        <div class="ititle">商品明細</div>
+        ${(o.items||[]).map(item=>`<div class="irow"><span class="iname" title="${item.name}">${item.name}</span><span class="isku">${item.sku||''}</span><span class="iqty">×${item.qty}</span><span class="iamt">${nt(item.subtotal)}</span></div>`).join('')}
+        <div class="sums">
+          <div class="sr"><span>小計</span><span>${nt(o.order_subtotal)}</span></div>
+          ${Number(o.discount)>0?`<div class="sr"><span>折抵</span><span class="red">-NT$${Math.round(Number(o.discount)).toLocaleString()}</span></div>`:''}
+          <div class="sr"><span>運費</span><span>${Number(o.shipping_fee)===0?'免運':nt(o.shipping_fee)}</span></div>
+          <div class="sr tot"><span>合計</span><span>NT$${Math.round(Number(o.total)||0).toLocaleString()}</span></div>
+        </div>
+      </div>
+    </div>`).join('');
+  document.getElementById('result-wrap').style.display='block';
+  if(!data)document.getElementById('result-wrap').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function tog(idx){document.getElementById('oc'+idx).classList.toggle('open')}
+ 
+// ── History ──
+function getHistory(){try{return JSON.parse(localStorage.getItem('orderHistory')||'[]')}catch(e){return[]}}
+function saveHistory(h){try{localStorage.setItem('orderHistory',JSON.stringify(h))}catch(e){}}
+ 
+function saveToHistory(){
+  if(!orders.length)return;
+  const h=getHistory();
+  const total=orders.reduce((s,o)=>s+(Number(o.total)||0),0);
+  const names=files.map(f=>f.name).join(', ');
+  h.unshift({
+    id:Date.now(),
+    date:new Date().toLocaleString('zh-TW'),
+    title:names||'訂單記錄',
+    count:orders.length,
+    total:Math.round(total),
+    orders:orders
+  });
+  saveHistory(h.slice(0,50)); // 最多保留 50 筆
+  alert(`✓ 已儲存「${names}」到歷史記錄`);
+  renderHistory();
+}
+ 
+function renderHistory(){
+  const h=getHistory();
+  const el=document.getElementById('hist-list');
+  if(!h.length){el.innerHTML='<div class="empty-hint">還沒有歷史記錄</div>';return}
+  el.innerHTML=h.map(item=>`
+    <div class="hist-row" onclick="loadHistory(${item.id})">
+      <div class="hist-info">
+        <div class="hist-title">${item.title}</div>
+        <div class="hist-meta">${item.date} · ${item.count} 筆訂單</div>
+      </div>
+      <div class="hist-amt">NT$${item.total.toLocaleString()}</div>
+      <button class="hist-del" onclick="deleteHistory(event,${item.id})">×</button>
+    </div>`).join('');
+}
+ 
+function loadHistory(id){
+  const h=getHistory();
+  const item=h.find(x=>x.id===id);
+  if(!item)return;
+  orders=item.orders;
+  switchTab('parse');
+  renderResults();
+  document.getElementById('prog-title').textContent=`已載入：${item.title}`;
+  document.getElementById('prog-wrap').style.display='block';
+  document.getElementById('plog').innerHTML=`<div class="ok">✓ 從歷史記錄載入 ${item.count} 筆</div>`;
+}
+ 
+function deleteHistory(e,id){
+  e.stopPropagation();
+  const h=getHistory().filter(x=>x.id!==id);
+  saveHistory(h);renderHistory();
+}
+function clearHistory(){if(confirm('確定清除所有歷史記錄？')){saveHistory([]);renderHistory()}}
+ 
+// ── Export CSV ──
+function flattenOrders(os){
+  const rows=[];
+  os.forEach(o=>{
+    const its=o.items?.length?o.items:[{}];
+    its.forEach((item,i)=>{
+      const f=i===0;
+      rows.push({order_id:f?o.order_id:'',order_date:f?o.order_date:'',order_status:f?o.order_status:'',payment_status:f?o.payment_status:'',buyer_name:f?o.buyer_name:'',buyer_phone:f?o.buyer_phone:'',buyer_email:f?o.buyer_email:'',recipient:f?o.recipient:'',recipient_phone:f?o.recipient_phone:'',address:f?o.address:'',shipping_method:f?o.shipping_method:'',payment_method:f?o.payment_method:'',item_name:item.name||'',item_sku:item.sku||'',qty:item.qty??'',unit_price:item.unit_price??'',item_sub:item.subtotal??'',order_subtotal:f?o.order_subtotal:'',discount:f?o.discount:'',shipping_fee:f?o.shipping_fee:'',total:f?o.total:'',_source:f?o._source:''});
+    });
+  });
+  return rows;
+}
+function exportCSV(){
+  const hdr=['訂單編號','訂單日期','訂單狀態','付款狀態','訂購人','電話','Email','收件人','收件人電話','收件地址','送貨方式','付款方式','商品名稱','商品貨號','數量','單價','商品小計','訂單小計','折抵','運費','合計','來源檔案'];
+  const rows=flattenOrders(orders).map(r=>[r.order_id,r.order_date,r.order_status,r.payment_status,r.buyer_name,r.buyer_phone,r.buyer_email,r.recipient,r.recipient_phone,r.address,r.shipping_method,r.payment_method,r.item_name,r.item_sku,r.qty,r.unit_price,r.item_sub,r.order_subtotal,r.discount,r.shipping_fee,r.total,r._source]);
+  const csv='\uFEFF'+[hdr,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`訂單整合_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+ 
+// ── Init ──
+loadSettings();
+renderHistory();
+</script>
+</body>
+</html>
