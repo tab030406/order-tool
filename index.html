@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>訂單 PDF 解析工具 v8.1</title>
+<title>訂單 PDF 解析工具 v8.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <style>
@@ -102,8 +102,8 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 </head>
 <body>
 <div class="shell">
-  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.1</span></h1>
-  <p class="sub">Google Gemini AI · 支援歷史記錄 · 無需伺服器</p>
+  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.2</span></h1>
+  <p class="sub">Claude AI · 支援歷史記錄 · 無需伺服器</p>
 
   <!-- Settings -->
   <div class="box">
@@ -113,12 +113,12 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
       <span class="as as-no" id="wu-st">Proxy 網址</span>
     </div>
     <div class="row">
-      <input type="password" class="inp" id="api-key" placeholder="Gemini API Key (AIzaSy...)" oninput="onSettingChange()">
+      <input type="password" class="inp" id="api-key" placeholder="Anthropic API Key (sk-ant-...)" oninput="onSettingChange()">
       <span class="as as-no" id="ak-st">API Key</span>
     </div>
     <p class="hint">
       Proxy 網址：Deno Deploy 或 Cloudflare Worker 皆可 ·
-      API Key 免費取得：<a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a>
+      API Key 取得：<a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com/settings/keys</a>
     </p>
   </div>
 
@@ -258,11 +258,12 @@ async function extractText(file){
 // ── Gemini via proxy ──
 async function callGemini(workerUrl,apiKey,text){
   const payload={
-    contents:[{parts:[{text:`請解析以下訂單文字，只回傳純 JSON 陣列，不要任何說明或 markdown：
+    model:'claude-haiku-4-5-20251001',
+    max_tokens:2000,
+    messages:[{role:'user',content:`請解析以下訂單文字，只回傳純 JSON 陣列，不要任何說明或 markdown：
 [{"order_id":"訂單編號去掉#","order_date":"YYYY-MM-DD","order_status":"訂單狀態","payment_status":"付款狀態","buyer_name":"訂購人","buyer_phone":"電話","buyer_email":"Email","recipient":"收件人","recipient_phone":"收件人電話","address":"完整地址","shipping_method":"送貨方式","payment_method":"付款方式","items":[{"name":"商品名","sku":"貨號","qty":1,"unit_price":100,"subtotal":100}],"order_subtotal":100,"discount":0,"shipping_fee":0,"total":100,"_source":"檔名"}]
 
-${text}`}]}],
-    generationConfig:{temperature:0}
+${text}`}]
   };
   const res=await fetch(workerUrl,{
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -276,7 +277,7 @@ ${text}`}]}],
   }
   let data;
   try{data=JSON.parse(resText)}catch(ex){throw new Error('Proxy 回傳非 JSON: '+resText.slice(0,120))}
-  const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+  const raw=data.content?.[0]?.text||'';
   const clean=raw.replace(/```json|```/g,'').trim();
   const s=clean.indexOf('['),e=clean.lastIndexOf(']');
   if(s<0||e<=s)throw new Error('Gemini 回傳格式錯誤: '+clean.slice(0,80));
