@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>訂單 PDF 解析工具 v8.4</title>
+<title>訂單 PDF 解析工具 v8.5</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <style>
@@ -102,7 +102,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 </head>
 <body>
 <div class="shell">
-  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.4</span></h1>
+  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.5</span></h1>
   <p class="sub">Google Gemini AI · 支援歷史記錄 · 無需伺服器</p>
 
   <!-- Settings -->
@@ -258,10 +258,9 @@ async function extractText(file){
 // ── Gemini via proxy ──
 async function callGemini(workerUrl,apiKey,text){
   const payload={
-    contents:[{parts:[{text:`請解析以下訂單文字，只回傳純 JSON 陣列，不要任何說明或 markdown：
-[{"order_id":"訂單編號去掉#","order_date":"YYYY-MM-DD","order_status":"訂單狀態","payment_status":"付款狀態","buyer_name":"訂購人","buyer_phone":"電話","buyer_email":"Email","recipient":"收件人","recipient_phone":"收件人電話","address":"完整地址","shipping_method":"送貨方式","payment_method":"付款方式","items":[{"name":"商品名","sku":"貨號","qty":1,"unit_price":100,"subtotal":100}],"order_subtotal":100,"discount":0,"shipping_fee":0,"total":100,"_source":"檔名"}]
-
-${text}`}]}],
+    contents:[{parts:[{text:`從訂單文字提取資料，只回傳JSON陣列：
+[{"order_id":"","order_date":"YYYY-MM-DD","order_status":"","payment_status":"","buyer_name":"","buyer_phone":"","buyer_email":"","recipient":"","recipient_phone":"","address":"","shipping_method":"","payment_method":"","items":[{"name":"","sku":"","qty":0,"unit_price":0,"subtotal":0}],"order_subtotal":0,"discount":0,"shipping_fee":0,"total":0,"_source":"${text.split('===')[1]?.split('：')[1]?.trim()||''}"}]
+訂單：${text}`}]}],
     generationConfig:{temperature:0}
   };
   const res=await fetch(workerUrl,{
@@ -303,6 +302,7 @@ async function startParsing(){
   document.getElementById('prog-wrap').style.display='block';
   document.getElementById('result-wrap').style.display='none';
   document.getElementById('plog').innerHTML='';
+  let retryCount={};
   const btn=document.getElementById('run-btn');
   btn.disabled=true;btn.innerHTML='<span class="spin"></span>解析中…';
   setProg(0,'抽取 PDF 文字中…');
@@ -321,10 +321,18 @@ async function startParsing(){
       log('ok',`  ✓ 成功 ${parsed.length} 筆`);
     }catch(e){
       if(e.message==='RATE_LIMIT'){
+        if(!retryCount) retryCount={};
+        retryCount[i]=(retryCount[i]||0)+1;
+        if(retryCount[i]>2){
+          setBadge(i,'be','❌ 限額已盡');
+          log('err','  ❌ 重試 2 次仍失敗，請更換 API Key');
+          continue;
+        }
+        const wait=65*retryCount[i];
         setBadge(i,'br','⏳ 等待中');
-        log('run',`  ⚠ 超過請求限制，60 秒後重試…`);
-        await countdown(60, i);
-        i--; // retry same file
+        log('run',`  ⚠ 超過請求限制，${wait} 秒後重試（第 ${retryCount[i]} 次）…`);
+        await countdown(wait, i);
+        i--;
         continue;
       }
       setBadge(i,'be','❌ 失敗');
