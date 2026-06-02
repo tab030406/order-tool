@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>訂單 PDF 解析工具 v8.5</title>
+<title>訂單 PDF 解析工具 v8.6</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <style>
@@ -102,7 +102,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 </head>
 <body>
 <div class="shell">
-  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.5</span></h1>
+  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.6</span></h1>
   <p class="sub">Google Gemini AI · 支援歷史記錄 · 無需伺服器</p>
 
   <!-- Settings -->
@@ -324,13 +324,13 @@ async function startParsing(){
         if(!retryCount) retryCount={};
         retryCount[i]=(retryCount[i]||0)+1;
         if(retryCount[i]>2){
-          setBadge(i,'be','❌ 限額已盡');
-          log('err','  ❌ 重試 2 次仍失敗，請更換 API Key');
+          setBadge(i,'be','❌ 超過限額');
+          log('err','  ❌ 已重試 2 次，請稍後再試或更換 API Key');
           continue;
         }
-        const wait=65*retryCount[i];
+        const wait=retryCount[i]===1?90:180;
         setBadge(i,'br','⏳ 等待中');
-        log('run',`  ⚠ 超過請求限制，${wait} 秒後重試（第 ${retryCount[i]} 次）…`);
+        log('run',`  ⚠ 超過請求限制，${wait} 秒後重試（第 ${retryCount[i]}/2 次）…`);
         await countdown(wait, i);
         i--;
         continue;
