@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>訂單 PDF 解析工具 v8.6</title>
+<title>訂單 PDF 解析工具 v8.10</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <style>
@@ -44,7 +44,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 .btn-sm{padding:5px 12px;font-size:12px}
 .pb{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin-bottom:8px}
 .pf{height:100%;background:var(--acc);border-radius:3px;transition:width .4s}
-.plog{font-size:12px;font-family:var(--mono);color:var(--mu);max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.plog{font-size:12px;font-family:var(--mono);color:var(--mu);max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .plog .ok{color:var(--ok)}.plog .err{color:var(--err)}.plog .run{color:var(--info)}
 /* Tabs */
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);margin-bottom:16px}
@@ -102,7 +102,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 </head>
 <body>
 <div class="shell">
-  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.6</span></h1>
+  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.10</span></h1>
   <p class="sub">Google Gemini AI · 支援歷史記錄 · 無需伺服器</p>
 
   <!-- Settings -->
@@ -256,6 +256,21 @@ async function extractText(file){
 }
 
 // ── Gemini via proxy ──
+function dedupText(txt){
+  for(let i=0;i<5;i++){
+    const prev=txt;
+    txt=txt.replace(/(\S[\S ]{0,20}?)\s+\1/g,'$1');
+    if(txt===prev)break;
+  }
+  return txt.replace(/ {2,}/g,' ').trim();
+})\s+/g, '$1');
+  // 再跑一次處理殘留
+  txt = txt.replace(/([^\s]{2,})\s+/g, '$1');
+  // 去除多餘空白
+  txt = txt.replace(/\s{2,}/g, ' ').trim();
+  return txt;
+}
+
 async function callGemini(workerUrl,apiKey,text){
   const payload={
     contents:[{parts:[{text:`從訂單文字提取資料，只回傳JSON陣列：
@@ -314,8 +329,12 @@ async function startParsing(){
     log('run',`▶ ${f.name}`);
     try{
       const txt=await extractText(f);
-      log('run',`  抽取 ${txt.length} 字，送 Gemini…`);
-      const parsed=await callGemini(wu,ak,txt);
+      const cleanTxt=dedupText(txt);
+      log('run',`  抽取 ${txt.length} 字 → 去重後 ${cleanTxt.length} 字，送 Gemini…`);
+      log('run','  ── 傳送全文 ──');
+      cleanTxt.match(/.{1,120}/g).forEach(line=>log('run','  '+line));
+      log('run',`  ── 全文結束（共 ${cleanTxt.length} 字）──`);
+      const parsed=await callGemini(wu,ak,cleanTxt);
       parsed.forEach(o=>{if(!o._source)o._source=f.name;orders.push(o)});
       setBadge(i,'bo',`✓ ${parsed.length} 筆`);
       log('ok',`  ✓ 成功 ${parsed.length} 筆`);
