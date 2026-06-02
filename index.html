@@ -263,12 +263,6 @@ function dedupText(txt){
     if(txt===prev)break;
   }
   return txt.replace(/ {2,}/g,' ').trim();
-})\s+/g, '$1');
-  // 再跑一次處理殘留
-  txt = txt.replace(/([^\s]{2,})\s+/g, '$1');
-  // 去除多餘空白
-  txt = txt.replace(/\s{2,}/g, ' ').trim();
-  return txt;
 }
 
 async function callGemini(workerUrl,apiKey,text){
