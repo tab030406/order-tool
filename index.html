@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>訂單 PDF 解析工具 v8.10</title>
+<title>訂單 PDF 解析工具 v9.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root{--bg:#fafaf8;--s:#fff;--s2:#f4f4f0;--bd:#e8e8e2;--bd2:#d0d0c8;--tx:#1a1a18;--mu:#888;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--info:#1967d2;--info-l:#e8f0fe;--err:#d93025;--err-l:#fce8e6;--warn:#b45309;--warn-l:#fffbeb;--r:8px;--rl:12px;--sans:'Noto Sans TC',sans-serif;--mono:monospace}
-@media(prefers-color-scheme:dark){:root{--bg:#1a1a1a;--s:#2d2d2d;--s2:#242424;--bd:#3d3d3d;--bd2:#4d4d4d;--tx:#e8e8e8;--mu:#888;--acc:#8ab4f8;--acc-l:#1a2d4d;--ok:#81c995;--ok-l:#1a3a24;--info:#8ab4f8;--info-l:#1a2d4d;--err:#f28b82;--err-l:#4d1a18;--warn:#fcd34d;--warn-l:#2d2000}}
+:root{--bg:#fafaf8;--s:#fff;--s2:#f4f4f0;--bd:#e8e8e2;--bd2:#d0d0c8;--tx:#1a1a18;--mu:#888;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--info:#1967d2;--info-l:#e8f0fe;--err:#d93025;--err-l:#fce8e6;--r:8px;--rl:12px;--sans:'Noto Sans TC',sans-serif;--mono:monospace}
+@media(prefers-color-scheme:dark){:root{--bg:#1a1a1a;--s:#2d2d2d;--s2:#242424;--bd:#3d3d3d;--bd2:#4d4d4d;--tx:#e8e8e8;--mu:#888;--acc:#8ab4f8;--acc-l:#1a2d4d;--ok:#81c995;--ok-l:#1a3a24;--info:#8ab4f8;--info-l:#1a2d4d;--err:#f28b82;--err-l:#4d1a18}}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--sans);background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;min-height:100vh}
 .shell{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
@@ -42,21 +43,19 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 .btn-o{background:var(--s);color:var(--tx);border:1px solid var(--bd2)}.btn-o:hover{background:var(--s2)}
 .btn-g{background:var(--s2);color:var(--tx);border:1px solid var(--bd2)}.btn-g:hover{background:var(--bd)}
 .btn-sm{padding:5px 12px;font-size:12px}
+.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{opacity:.88}
 .pb{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin-bottom:8px}
 .pf{height:100%;background:var(--acc);border-radius:3px;transition:width .4s}
 .plog{font-size:12px;font-family:var(--mono);color:var(--mu);max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
 .plog .ok{color:var(--ok)}.plog .err{color:var(--err)}.plog .run{color:var(--info)}
-/* Tabs */
-.tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);margin-bottom:16px}
+.tabs{display:flex;border-bottom:1px solid var(--bd);margin-bottom:16px}
 .tab{padding:8px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--mu);transition:all .15s}
 .tab.active{color:var(--acc);border-bottom-color:var(--acc);font-weight:500}
 .tab-panel{display:none}.tab-panel.active{display:block}
-/* Stats */
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
 .sc{background:var(--s2);border-radius:var(--r);padding:14px 16px;border:1px solid var(--bd)}
 .sc .lb{font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
 .sc .vl{font-size:22px;font-weight:600}
-/* Order cards */
 .cards{display:flex;flex-direction:column;gap:8px}
 .oc{border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
 .och{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;background:var(--s);transition:background .12s;user-select:none}
@@ -86,6 +85,16 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 .red{color:var(--err)}
 .tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;flex-shrink:0}
 .tok{background:var(--ok-l);color:var(--ok)}.tinfo{background:var(--info-l);color:var(--info)}
+/* Excel merge section */
+.xlsx-drop{border:1.5px dashed var(--bd2);border-radius:var(--r);padding:1.25rem;text-align:center;cursor:pointer;position:relative;transition:all .15s;display:flex;align-items:center;gap:12px;justify-content:center}
+.xlsx-drop:hover,.xlsx-drop.drag{border-color:var(--ok);background:var(--ok-l)}
+.xlsx-drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.xlsx-loaded{background:var(--ok-l);border-color:var(--ok);border-radius:var(--r);padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:8px}
+.merge-map{display:flex;flex-direction:column;gap:6px;margin-top:10px;font-size:12px}
+.map-row{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--s2);border-radius:var(--r)}
+.map-row .mk{color:var(--mu);min-width:80px}
+.map-row .mv{font-weight:500;color:var(--ok)}
+.map-row .ms{font-size:11px;color:var(--mu)}
 /* History */
 .hist-list{display:flex;flex-direction:column;gap:6px}
 .hist-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);font-size:13px;cursor:pointer;transition:background .12s}
@@ -93,7 +102,7 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 .hist-info{flex:1;min-width:0}
 .hist-title{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hist-meta{font-size:11px;color:var(--mu);margin-top:1px;font-family:var(--mono)}
-.hist-amt{font-weight:500;font-size:13px;flex-shrink:0}
+.hist-amt{font-weight:500;flex-shrink:0}
 .hist-del{cursor:pointer;color:var(--mu);background:none;border:none;font-size:16px;padding:0 2px;flex-shrink:0}.hist-del:hover{color:var(--err)}
 .empty-hint{font-size:13px;color:var(--mu);text-align:center;padding:2rem 0}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--bd2);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
@@ -102,30 +111,28 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 </head>
 <body>
 <div class="shell">
-  <h1>📋 訂單 PDF 批次解析 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v8.10</span></h1>
-  <p class="sub">Google Gemini AI · 支援歷史記錄 · 無需伺服器</p>
+  <h1>📋 訂單 PDF 解析工具 <span style="font-size:13px;font-weight:400;color:var(--mu);margin-left:6px">v9.2</span></h1>
+  <p class="sub">Google Gemini AI · 解析 PDF · 自動填入 Excel · 支援歷史記錄</p>
 
   <!-- Settings -->
   <div class="box">
     <div class="box-title">⚙ 設定（自動儲存）</div>
     <div class="row">
-      <input type="text" class="inp" id="worker-url" placeholder="https://xxx.deno.dev 或 https://xxx.workers.dev" oninput="onSettingChange()">
+      <input type="text" class="inp" id="worker-url" placeholder="https://xxx.onrender.com 或 https://xxx.workers.dev" oninput="onSettingChange()">
       <span class="as as-no" id="wu-st">Proxy 網址</span>
     </div>
     <div class="row">
-      <input type="password" class="inp" id="api-key" placeholder="Gemini API Key (AIzaSy...)" oninput="onSettingChange()">
+      <input type="password" class="inp" id="api-key" placeholder="Gemini API Key" oninput="onSettingChange()">
       <span class="as as-no" id="ak-st">API Key</span>
     </div>
-    <p class="hint">
-      Proxy 網址：Deno Deploy 或 Cloudflare Worker 皆可 ·
-      API Key 免費取得：<a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a>
-    </p>
+    <p class="hint">Proxy：<a href="https://render.com" target="_blank">Render.com</a> 免費部署 · API Key：<a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a></p>
   </div>
 
-  <!-- Tabs -->
+  <!-- Main tabs -->
   <div class="box" style="padding-bottom:1.25rem">
     <div class="tabs">
-      <div class="tab active" onclick="switchTab('parse')">📤 解析</div>
+      <div class="tab active" onclick="switchTab('parse')">📤 解析 PDF</div>
+      <div class="tab" onclick="switchTab('excel')">📊 填入 Excel</div>
       <div class="tab" onclick="switchTab('history')">🗂 歷史記錄</div>
     </div>
 
@@ -142,23 +149,45 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
         <button class="btn btn-p" id="run-btn" onclick="startParsing()" disabled>⚡ 開始解析</button>
         <button class="btn btn-o" onclick="clearAll()">清除</button>
       </div>
-
       <div id="prog-wrap" style="display:none;margin-top:14px">
         <div class="box-title" id="prog-title">解析中…</div>
         <div class="pb"><div class="pf" id="pf" style="width:0%"></div></div>
         <div class="plog" id="plog"></div>
       </div>
-
       <div id="result-wrap" style="display:none;margin-top:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
           <div class="box-title" style="margin:0">✅ 解析結果</div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-g btn-sm" onclick="exportCSV()">↓ CSV</button>
-            <button class="btn btn-g btn-sm" onclick="saveToHistory()">💾 儲存記錄</button>
+            <button class="btn btn-ok btn-sm" onclick="saveToHistory()">💾 儲存記錄</button>
           </div>
         </div>
         <div class="stats" id="stats"></div>
         <div class="cards" id="cards"></div>
+      </div>
+    </div>
+
+    <!-- Excel Tab -->
+    <div class="tab-panel" id="tab-excel">
+      <p style="font-size:13px;color:var(--mu);margin-bottom:14px">上傳現有 Excel，自動比對訂單編號，將 PDF 解析的收件資訊填入對應欄位。</p>
+
+      <div id="xlsx-upload-area">
+        <div class="xlsx-drop" id="xlsx-dz">
+          <input type="file" id="xlsx-fi" accept=".xlsx,.xls">
+          <span style="font-size:22px">📊</span>
+          <div>
+            <div style="font-weight:500;font-size:13px">拖曳 Excel 檔案到這裡</div>
+            <div style="font-size:12px;color:var(--mu)">支援 .xlsx / .xls</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="xlsx-loaded-info" style="display:none;margin-top:10px"></div>
+      <div id="xlsx-match-info" style="display:none;margin-top:12px"></div>
+
+      <div class="acts" style="margin-top:12px">
+        <button class="btn btn-ok" id="merge-btn" style="display:none" onclick="doMerge()">📥 填入並下載 Excel</button>
+        <button class="btn btn-o" id="xlsx-clear-btn" style="display:none" onclick="clearXlsx()">清除</button>
       </div>
     </div>
 
@@ -174,13 +203,13 @@ h1{font-size:22px;font-weight:600;margin-bottom:4px}
 </div>
 
 <script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 const _w=console.warn.bind(console);
 console.warn=(...a)=>{if(typeof a[0]==='string'&&a[0].includes('fake worker'))return;_w(...a)};
-pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-let files=[], orders=[];
+let files=[], orders=[], xlsxFile=null, xlsxData=null;
 
-// ── 設定讀取/儲存 ──
+// ── Settings ──
 function loadSettings(){
   try{
     const wu=localStorage.getItem('workerUrl')||'';
@@ -207,13 +236,17 @@ const getKey=()=>document.getElementById('api-key').value.trim();
 
 // ── Tabs ──
 function switchTab(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['parse','history'][i]===t));
-  document.querySelectorAll('.tab-panel').forEach((el,i)=>el.classList.toggle('active',['tab-parse','tab-history'][i]==='tab-'+t));
+  const tabs=['parse','excel','history'];
+  tabs.forEach(id=>{
+    document.getElementById('tab-'+id).classList.toggle('active',id===t);
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   if(t==='history')renderHistory();
+  if(t==='excel')renderXlsxMatchInfo();
 }
 
-// ── File handling ──
-const dz=document.getElementById('dz'),fi=document.getElementById('fi');
+// ── PDF File handling ──
+const dz=document.getElementById('dz'), fi=document.getElementById('fi');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');addFiles([...e.dataTransfer.files].filter(f=>f.name.endsWith('.pdf')))});
@@ -255,7 +288,7 @@ async function extractText(file){
   return txt.trim();
 }
 
-// ── Gemini via proxy ──
+// ── Dedup + Structured Format ──
 function dedupText(txt){
   for(let i=0;i<5;i++){
     const prev=txt;
@@ -265,37 +298,105 @@ function dedupText(txt){
   return txt.replace(/ {2,}/g,' ').trim();
 }
 
-async function callGemini(workerUrl,apiKey,text){
-  const payload={
-    contents:[{parts:[{text:`從訂單文字提取資料，只回傳JSON陣列：
-[{"order_id":"","order_date":"YYYY-MM-DD","order_status":"","payment_status":"","buyer_name":"","buyer_phone":"","buyer_email":"","recipient":"","recipient_phone":"","address":"","shipping_method":"","payment_method":"","items":[{"name":"","sku":"","qty":0,"unit_price":0,"subtotal":0}],"order_subtotal":0,"discount":0,"shipping_fee":0,"total":0,"_source":"${text.split('===')[1]?.split('：')[1]?.trim()||''}"}]
-訂單：${text}`}]}],
-    generationConfig:{temperature:0}
-  };
-  const res=await fetch(workerUrl,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({apiKey,payload})
-  });
-  const resText=await res.text();
-  if(res.status===429){
-    throw new Error('RATE_LIMIT');
+function structureText(txt){
+  // 去重
+  txt = dedupText(txt);
+
+  // 抽取訂單編號
+  const orderIdM = txt.match(/#(\d{10,})/);
+  const orderId = orderIdM ? orderIdM[1] : '';
+
+  // 抽取日期
+  const dateM = txt.match(/(\d{4}-\d{2}-\d{2})/);
+  const date = dateM ? dateM[1] : '';
+
+  // 抽取訂單/付款狀態
+  const statusM = txt.match(/訂單狀態[:\s]*(\S+)/);
+  const payStatusM = txt.match(/付款狀態[:\s]*(\S+)/);
+
+  // 抽取訂購人
+  const buyerM = txt.match(/訂購人[:\s]*([^\s訂單EMAIL電話]+)/);
+  const emailM = txt.match(/EMAIL[:\s]*([^\s]+@[^\s]+)/i);
+  const phoneM = txt.match(/電話號碼[:\s]*(\d+)/);
+
+  // 抽取地址
+  const addrM = txt.match(/運送至[:\s]*([^送貨]+)/);
+  const addr = addrM ? addrM[1].replace(/\s+/g,' ').trim() : '';
+
+  // 抽取收件人
+  const recipientM = txt.match(/收件人[:\s]*([^\s收件人電話]+)/);
+  const recPhoneM = txt.match(/收件人電話號碼[:\s]*(\d+)/);
+
+  // 抽取送貨/付款方式
+  const shipM = txt.match(/送貨方式[:\s]*(\S+)/);
+  const payM = txt.match(/付款方式[:\s]*(\S+)/);
+
+  // 抽取商品（每行格式：商品名 貨號 數量 金額）
+  const itemLines = [];
+  // 找 NT$ 金額區塊
+  const itemBlock = txt.match(/商品[貨號數量價格小計\s]+(.*?)小計[：:]/s);
+  if(itemBlock){
+    // 每個貨號對應一筆商品
+    const skuRe = /([A-Z0-9\-]{5,})/g;
+    let skuM;
+    const rawBlock = itemBlock[1];
+    const segments = rawBlock.split(/(?=[A-Z]{2,}[0-9])/);
+    segments.forEach(seg => {
+      seg = seg.trim();
+      if(!seg) return;
+      const skuMatch = seg.match(/([A-Z0-9\-]{5,})/);
+      if(!skuMatch) return;
+      const sku = skuMatch[1];
+      const qtyM = seg.match(/(\d+)\s+NT\$/);
+      const amtM = seg.match(/NT\$([\d,]+)\s*$/);
+      const name = seg.slice(0, seg.indexOf(sku)).trim().replace(/\s+/g,' ');
+      const qty = qtyM ? parseInt(qtyM[1]) : 1;
+      const subtotal = amtM ? parseInt(amtM[1].replace(/,/g,'')) : 0;
+      if(name || sku) itemLines.push({name, sku, qty, subtotal});
+    });
   }
-  if(!res.ok){
-    let msg=resText;
-    try{const j=JSON.parse(resText);msg=j.error?.message||j.error||j.message||resText}catch(ex){}
-    throw new Error('Proxy '+res.status+': '+String(msg).slice(0,120));
+
+  // 抽取金額
+  const subtotalM = txt.match(/小計[：:]\s*NT\$([\d,]+)/);
+  const discountM = txt.match(/折抵[^:：]*[：:]\s*-\s*NT\$([\d,]+)/);
+  const shippingM = txt.match(/運費[：:]\s*NT\$([\d,]+)/);
+  const totalM = txt.match(/合計[：:]\s*NT\$([\d,]+)/);
+
+  // 組成結構化文字
+  let out = '';
+  out += `[訂單]\n`;
+  out += `編號: ${orderId}\n`;
+  out += `日期: ${date}\n`;
+  if(statusM) out += `狀態: ${statusM[1]}\n`;
+  if(payStatusM) out += `付款狀態: ${payStatusM[1]}\n`;
+  out += `\n[買家]\n`;
+  if(buyerM) out += `姓名: ${buyerM[1].trim()}\n`;
+  if(emailM) out += `Email: ${emailM[1]}\n`;
+  if(phoneM) out += `電話: ${phoneM[1]}\n`;
+  out += `地址: ${addr}\n`;
+  if(recipientM) out += `收件人: ${recipientM[1].trim()}\n`;
+  if(recPhoneM) out += `收件人電話: ${recPhoneM[1]}\n`;
+  if(shipM) out += `送貨: ${shipM[1]}\n`;
+  if(payM) out += `付款: ${payM[1]}\n`;
+
+  if(itemLines.length){
+    out += `\n[商品]\n`;
+    itemLines.forEach((item,i) => {
+      out += `${i+1}. ${item.name} | ${item.sku} | x${item.qty} | NT$${item.subtotal}\n`;
+    });
   }
-  let data;
-  try{data=JSON.parse(resText)}catch(ex){throw new Error('Proxy 回傳非 JSON: '+resText.slice(0,120))}
-  const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
-  const clean=raw.replace(/```json|```/g,'').trim();
-  const s=clean.indexOf('['),e=clean.lastIndexOf(']');
-  if(s<0||e<=s)throw new Error('Gemini 回傳格式錯誤: '+clean.slice(0,80));
-  return JSON.parse(clean.slice(s,e+1));
+
+  out += `\n[金額]\n`;
+  if(subtotalM) out += `小計: NT$${subtotalM[1]}\n`;
+  if(discountM) out += `折抵: -NT$${discountM[1]}\n`;
+  if(shippingM) out += `運費: NT$${shippingM[1]}\n`;
+  if(totalM) out += `合計: NT$${totalM[1]}\n`;
+
+  return out.trim();
 }
 
-// ── Main parse ──
-async function countdown(secs, fileIdx){
+// ── Countdown ──
+async function countdown(secs,fileIdx){
   for(let s=secs;s>0;s--){
     setBadge(fileIdx,'br',`⏳ ${s}s`);
     document.getElementById('prog-title').textContent=`超過請求限制，${s} 秒後重試…`;
@@ -304,6 +405,173 @@ async function countdown(secs, fileIdx){
   setBadge(fileIdx,'br','解析中…');
 }
 
+// ── Segment text into customer / items / amounts ──
+function segmentText(txt){
+  txt = dedupText(txt);
+
+  // Customer section
+  const orderIdM  = txt.match(/#?(\d{10,})/);
+  const dateM     = txt.match(/(\d{4}-\d{2}-\d{2})/);
+  const statusM   = txt.match(/訂單狀態[:\s]*(\S+)/);
+  const payStM    = txt.match(/付款狀態[:\s]*(\S+)/);
+  const buyerM    = txt.match(/訂購人[:\s]*([^\s訂單EMAIL電話]+)/);
+  const emailM    = txt.match(/EMAIL[:\s]*([^\s]+@[^\s]+)/i);
+  const phoneM    = txt.match(/電話號碼[:\s]*(\d+)/);
+  const addrM     = txt.match(/運送至[:\s]*(.+?)(?:送貨方式|收件人)/s);
+  const recipM    = txt.match(/收件人[:\s]*([^\s收件人電話]+)/);
+  const recPhM    = txt.match(/收件人電話號碼[:\s]*(\d+)/);
+  const shipM     = txt.match(/送貨方式[:\s]*(\S+)/);
+  const payM      = txt.match(/付款方式[:\s]*(\S+)/);
+
+  const customer = [
+    `訂單編號: ${orderIdM?.[1]||''}`,
+    `訂單日期: ${dateM?.[1]||''}`,
+    `訂單狀態: ${statusM?.[1]||''}`,
+    `付款狀態: ${payStM?.[1]||''}`,
+    `訂購人: ${buyerM?.[1]?.trim()||''}`,
+    `Email: ${emailM?.[1]||''}`,
+    `電話: ${phoneM?.[1]||''}`,
+    `地址: ${addrM?.[1]?.replace(/\s+/g,' ').trim()||''}`,
+    `收件人: ${recipM?.[1]?.trim()||''}`,
+    `收件人電話: ${recPhM?.[1]||''}`,
+    `送貨方式: ${shipM?.[1]||''}`,
+    `付款方式: ${payM?.[1]||''}`,
+  ].join('\n');
+
+  // Items — find between 付款方式 and 小計
+  const itemBlock = txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)?.[1]||'';
+  const items = [];
+  // Split by SKU pattern (all caps + digits, 5+ chars)
+  const skuRe = /([A-Z][A-Z0-9\-]{4,})/g;
+  const skuMatches = [...itemBlock.matchAll(skuRe)];
+  skuMatches.forEach((m,idx)=>{
+    const start = m.index;
+    const end   = skuMatches[idx+1]?.index ?? itemBlock.length;
+    const seg   = itemBlock.slice(Math.max(0,start-120), end).trim();
+    const sku   = m[1];
+    const qtyM2 = seg.match(/(\d+)\s+NT\$/);
+    const amtM2 = seg.match(/NT\$([\d,]+)\s*$/);
+    const nameRaw = seg.slice(0, seg.indexOf(sku)).replace(/\s+/g,' ').trim();
+    items.push({
+      index:   idx+1,
+      name:    nameRaw||sku,
+      sku:     sku,
+      qty:     qtyM2?parseInt(qtyM2[1]):1,
+      subtotal:amtM2?parseInt(amtM2[1].replace(/,/g,'')):0
+    });
+  });
+
+  // Amounts
+  const subM  = txt.match(/小計[：:]\s*NT\$([\d,]+)/);
+  const discM = txt.match(/折抵[^:：]*[：:]\s*-\s*NT\$([\d,]+)/);
+  const shipFM= txt.match(/運費[：:]\s*NT\$([\d,]+)/);
+  const totM  = txt.match(/合計[：:]\s*NT\$([\d,]+)/);
+  const amounts = [
+    `小計: NT$${subM?.[1]||0}`,
+    `折抵: -NT$${discM?.[1]||0}`,
+    `運費: NT$${shipFM?.[1]||0}`,
+    `合計: NT$${totM?.[1]||0}`,
+  ].join('\n');
+
+  return {customer, items, amounts};
+}
+
+// ── Gemini API (single call) ──
+async function geminiCall(workerUrl,apiKey,prompt){
+  const payload={
+    contents:[{parts:[{text:prompt}]}],
+    generationConfig:{temperature:0}
+  };
+  const res=await fetch(workerUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey,payload})});
+  const resText=await res.text();
+  if(res.status===429)throw new Error('RATE_LIMIT');
+  if(!res.ok){
+    let msg=resText;
+    try{const j=JSON.parse(resText);msg=j.error?.message||j.error||msg}catch(ex){}
+    throw new Error('Proxy '+res.status+': '+String(msg).slice(0,120));
+  }
+  let data;
+  try{data=JSON.parse(resText)}catch(ex){throw new Error('非JSON: '+resText.slice(0,80))}
+  return data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+}
+
+// 隨機等待 10~30 秒
+function randWait(min=10,max=30){
+  const ms=(min+Math.random()*(max-min))*1000;
+  return new Promise(r=>setTimeout(r,ms));
+}
+
+// 分段傳送，多輪對話累積結果
+async function callGemini(workerUrl,apiKey,structured,fileIdx){
+  const s=structured;
+
+  // ── 第1段：客戶資料 ──
+  log('run',`  [1/3] 傳送客戶資料…`);
+  const part1=`請記住以下訂單客戶資料，之後我會繼續補充商品與金額，最後請你整合成JSON：
+${s.customer}
+收到請回覆「已記錄客戶資料」`;
+  const r1=await geminiCall(workerUrl,apiKey,part1);
+  log('run',`  Gemini: ${r1.slice(0,50)}`);
+
+  // 等待
+  const w1=10+Math.floor(Math.random()*20);
+  log('run',`  等待 ${w1} 秒後傳送商品資料…`);
+  for(let s2=w1;s2>0;s2--){
+    setBadge(fileIdx,'br',`⏳ ${s2}s`);
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  setBadge(fileIdx,'br','解析中…');
+
+  // ── 第2段：逐項商品 ──
+  for(let i=0;i<s.items.length;i++){
+    const item=s.items[i];
+    log('run',`  [2/${2+s.items.length-1}] 傳送商品 ${i+1}/${s.items.length}…`);
+    const partItem=`商品資料 ${i+1}/${s.items.length}：
+項次: ${item.index}
+品名: ${item.name}
+料號: ${item.sku}
+數量: ${item.qty}
+單項總金額: NT$${item.subtotal}
+收到請回覆「已記錄商品${i+1}」`;
+    const ri=await geminiCall(workerUrl,apiKey,partItem);
+    log('run',`  Gemini: ${ri.slice(0,50)}`);
+
+    if(i<s.items.length-1){
+      const wi=10+Math.floor(Math.random()*20);
+      log('run',`  等待 ${wi} 秒後傳送下一商品…`);
+      for(let s3=wi;s3>0;s3--){
+        setBadge(fileIdx,'br',`⏳ ${s3}s`);
+        await new Promise(r=>setTimeout(r,1000));
+      }
+      setBadge(fileIdx,'br','解析中…');
+    }
+  }
+
+  // 等待
+  const w2=10+Math.floor(Math.random()*20);
+  log('run',`  等待 ${w2} 秒後傳送金額資料…`);
+  for(let s4=w2;s4>0;s4--){
+    setBadge(fileIdx,'br',`⏳ ${s4}s`);
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  setBadge(fileIdx,'br','解析中…');
+
+  // ── 第3段：金額 + 要求JSON ──
+  log('run',`  [最終段] 傳送金額資料，要求輸出JSON…`);
+  const partFinal=`金額資料：
+${s.amounts}
+
+請將以上所有訂單資料整合，只回傳純JSON陣列，不要任何說明：
+[{"order_id":"","order_date":"YYYY-MM-DD","order_status":"","payment_status":"","buyer_name":"","buyer_phone":"","buyer_email":"","recipient":"","recipient_phone":"","address":"","shipping_method":"","payment_method":"","items":[{"name":"","sku":"","qty":0,"unit_price":0,"subtotal":0}],"order_subtotal":0,"discount":0,"shipping_fee":0,"total":0}]`;
+  const rFinal=await geminiCall(workerUrl,apiKey,partFinal);
+
+  const clean=rFinal.replace(/\`\`\`json|\`\`\`/g,'').trim();
+  const si=clean.indexOf('['),ei=clean.lastIndexOf(']');
+  if(si<0||ei<=si)throw new Error('格式錯誤: '+clean.slice(0,80));
+  return JSON.parse(clean.slice(si,ei+1));
+}
+
+// ── Main parse ──
 async function startParsing(){
   const wu=getWorkerUrl(),ak=getKey();
   if(!wu||!ak||!files.length)return;
@@ -323,30 +591,26 @@ async function startParsing(){
     log('run',`▶ ${f.name}`);
     try{
       const txt=await extractText(f);
-      const cleanTxt=dedupText(txt);
-      log('run',`  抽取 ${txt.length} 字 → 去重後 ${cleanTxt.length} 字，送 Gemini…`);
-      log('run','  ── 傳送全文 ──');
-      cleanTxt.match(/.{1,120}/g).forEach(line=>log('run','  '+line));
-      log('run',`  ── 全文結束（共 ${cleanTxt.length} 字）──`);
-      const parsed=await callGemini(wu,ak,cleanTxt);
+      const segments=segmentText(txt);
+      log('run',`  抽取完成，分 ${2+segments.items.length} 段傳送（客戶→商品×${segments.items.length}→金額）`);
+      log('run','  ── 客戶資料 ──');
+      segments.customer.split('\n').forEach(l=>log('run','  '+l));
+      segments.items.forEach((item,i)=>{log('run',`  ── 商品${i+1} ──`);log('run',`  ${item.index}. ${item.name} | ${item.sku} | x${item.qty} | NT$${item.subtotal}`)});
+      log('run','  ── 金額 ──');
+      segments.amounts.split('\n').forEach(l=>log('run','  '+l));
+      const parsed=await callGemini(wu,ak,segments,i);
       parsed.forEach(o=>{if(!o._source)o._source=f.name;orders.push(o)});
       setBadge(i,'bo',`✓ ${parsed.length} 筆`);
       log('ok',`  ✓ 成功 ${parsed.length} 筆`);
     }catch(e){
       if(e.message==='RATE_LIMIT'){
-        if(!retryCount) retryCount={};
-        retryCount[i]=(retryCount[i]||0)+1;
-        if(retryCount[i]>2){
-          setBadge(i,'be','❌ 超過限額');
-          log('err','  ❌ 已重試 2 次，請稍後再試或更換 API Key');
-          continue;
-        }
+        if(!retryCount[i])retryCount[i]=0;
+        retryCount[i]++;
+        if(retryCount[i]>2){setBadge(i,'be','❌ 超過限額');log('err','  ❌ 已重試 2 次，請稍後再試');continue}
         const wait=retryCount[i]===1?90:180;
-        setBadge(i,'br','⏳ 等待中');
         log('run',`  ⚠ 超過請求限制，${wait} 秒後重試（第 ${retryCount[i]}/2 次）…`);
-        await countdown(wait, i);
-        i--;
-        continue;
+        await countdown(wait,i);
+        i--;continue;
       }
       setBadge(i,'be','❌ 失敗');
       log('err',`  ❌ ${e.message}`);
@@ -354,8 +618,8 @@ async function startParsing(){
   }
   setProg(100,'');
   document.getElementById('prog-title').textContent=`完成！成功 ${orders.length} 筆`;
-  btn.disabled=false;btn.innerHTML='⚡ 重新解析';
-  if(orders.length)renderResults();
+  btn.disabled=false;btn.innerHTML='⚡ 開始解析';
+  if(orders.length){renderResults();renderXlsxMatchInfo()}
 }
 
 // ── Render results ──
@@ -398,32 +662,178 @@ function renderResults(data){
       </div>
     </div>`).join('');
   document.getElementById('result-wrap').style.display='block';
-  if(!data)document.getElementById('result-wrap').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function tog(idx){document.getElementById('oc'+idx).classList.toggle('open')}
 
+// ── Excel upload & merge ──
+const xlsxDz=document.getElementById('xlsx-dz'), xlsxFi=document.getElementById('xlsx-fi');
+xlsxDz.addEventListener('dragover',e=>{e.preventDefault();xlsxDz.classList.add('drag')});
+xlsxDz.addEventListener('dragleave',()=>xlsxDz.classList.remove('drag'));
+xlsxDz.addEventListener('drop',e=>{e.preventDefault();xlsxDz.classList.remove('drag');if(e.dataTransfer.files[0])loadXlsx(e.dataTransfer.files[0])});
+xlsxFi.addEventListener('change',e=>{if(e.target.files[0])loadXlsx(e.target.files[0]);xlsxFi.value=''});
+
+async function loadXlsx(file){
+  xlsxFile=file;
+  const ab=await file.arrayBuffer();
+  const wb=XLSX.read(ab,{type:'array',cellDates:true});
+  xlsxData={wb, fileName:file.name};
+
+  document.getElementById('xlsx-upload-area').style.display='none';
+  document.getElementById('xlsx-loaded-info').style.display='block';
+  document.getElementById('xlsx-loaded-info').innerHTML=`
+    <div class="xlsx-loaded">
+      <span>📊</span>
+      <div style="flex:1">
+        <div style="font-weight:500">${file.name}</div>
+        <div style="font-size:11px;color:var(--mu)">${(file.size/1024).toFixed(1)} KB · ${wb.SheetNames.length} 個工作表</div>
+      </div>
+      <button class="rmb" onclick="clearXlsx()">×</button>
+    </div>`;
+  document.getElementById('xlsx-clear-btn').style.display='inline-flex';
+  renderXlsxMatchInfo();
+}
+
+function clearXlsx(){
+  xlsxFile=null;xlsxData=null;
+  document.getElementById('xlsx-upload-area').style.display='block';
+  document.getElementById('xlsx-loaded-info').style.display='none';
+  document.getElementById('xlsx-match-info').style.display='none';
+  document.getElementById('merge-btn').style.display='none';
+  document.getElementById('xlsx-clear-btn').style.display='none';
+}
+
+function renderXlsxMatchInfo(){
+  if(!xlsxData||!orders.length){
+    document.getElementById('xlsx-match-info').style.display='none';
+    document.getElementById('merge-btn').style.display='none';
+    if(xlsxData&&!orders.length){
+      document.getElementById('xlsx-match-info').style.display='block';
+      document.getElementById('xlsx-match-info').innerHTML='<p style="font-size:13px;color:var(--mu)">請先在「解析 PDF」分頁解析訂單，再回來填入。</p>';
+    }
+    return;
+  }
+
+  const ws=xlsxData.wb.Sheets[xlsxData.wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+  // Find header row & column index of 單號
+  let orderIdCol=-1, headerRow=-1;
+  for(let r=0;r<Math.min(5,rows.length);r++){
+    const idx=rows[r].findIndex(c=>String(c).includes('單號'));
+    if(idx>=0){orderIdCol=idx;headerRow=r;break;}
+  }
+
+  if(orderIdCol<0){
+    document.getElementById('xlsx-match-info').innerHTML='<p style="font-size:13px;color:var(--err)">❌ 找不到「單號」欄位，請確認 Excel 格式</p>';
+    document.getElementById('xlsx-match-info').style.display='block';
+    return;
+  }
+
+  // Find which orders match
+  const excelOrderIds=new Set();
+  for(let r=headerRow+1;r<rows.length;r++){
+    const v=String(rows[r][orderIdCol]||'').trim();
+    if(v)excelOrderIds.add(v);
+  }
+
+  const matched=orders.filter(o=>excelOrderIds.has(String(o.order_id)));
+  const unmatched=orders.filter(o=>!excelOrderIds.has(String(o.order_id)));
+
+  let html=`<div style="font-size:13px;margin-bottom:8px">`;
+  html+=`<span style="color:var(--ok)">✓ 比對到 ${matched.length} 筆</span>`;
+  if(unmatched.length)html+=`　<span style="color:var(--mu)">未比對到 ${unmatched.length} 筆</span>`;
+  html+=`</div><div class="merge-map">`;
+  matched.forEach(o=>{
+    html+=`<div class="map-row">
+      <span class="mk">#${String(o.order_id).slice(-6)}</span>
+      <span class="mv">${o.recipient||o.buyer_name}</span>
+      <span class="ms">${o.address?.slice(0,20)||''}…</span>
+    </div>`;
+  });
+  if(unmatched.length){
+    unmatched.forEach(o=>{
+      html+=`<div class="map-row" style="opacity:.5">
+        <span class="mk">#${String(o.order_id).slice(-6)}</span>
+        <span style="color:var(--mu);font-size:11px">未在 Excel 中找到</span>
+      </div>`;
+    });
+  }
+  html+=`</div>`;
+
+  document.getElementById('xlsx-match-info').innerHTML=html;
+  document.getElementById('xlsx-match-info').style.display='block';
+  document.getElementById('merge-btn').style.display=matched.length?'inline-flex':'none';
+}
+
+function doMerge(){
+  if(!xlsxData||!orders.length)return;
+
+  const wb=xlsxData.wb;
+  const wsName=wb.SheetNames[0];
+  const ws=wb.Sheets[wsName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+
+  // Find header positions
+  const hdr=rows.find(r=>r.some(c=>String(c).includes('單號')))||[];
+  const col={
+    orderIdCol: hdr.findIndex(c=>String(c).includes('單號')),
+    recipient:  hdr.findIndex(c=>String(c).includes('收貨人')),
+    phone:      hdr.findIndex(c=>String(c).includes('電話')&&!String(c).includes('客')),
+    address:    hdr.findIndex(c=>String(c).includes('地址')),
+    payment:    hdr.findIndex(c=>String(c).includes('付款方式')),
+    note:       hdr.findIndex(c=>String(c).includes('備註')),
+  };
+
+  // Build order lookup
+  const orderMap={};
+  orders.forEach(o=>orderMap[String(o.order_id)]=o);
+
+  let filled=0;
+  const headerRowIdx=rows.indexOf(hdr);
+
+  for(let r=headerRowIdx+1;r<rows.length;r++){
+    const orderId=String(rows[r][col.orderIdCol]||'').trim();
+    const o=orderMap[orderId];
+    if(!o)continue;
+
+    const isFirstItem = r===headerRowIdx+1 ||
+      String(rows[r-1][col.orderIdCol]||'').trim()!==orderId;
+
+    const setCell=(c,val)=>{
+      if(c<0||!val)return;
+      const addr=XLSX.utils.encode_cell({r,c});
+      ws[addr]=ws[addr]||{};
+      ws[addr].v=val;ws[addr].t='s';
+    };
+
+    setCell(col.recipient, o.recipient||o.buyer_name);
+    setCell(col.phone,     o.recipient_phone||o.buyer_phone);
+    setCell(col.address,   o.address);
+    setCell(col.payment,   o.payment_method);
+    if(isFirstItem && col.note>=0){
+      setCell(col.note, `Email:${o.buyer_email||''} 折抵:NT$${o.discount||0}`);
+    }
+    filled++;
+  }
+
+  const outName=xlsxData.fileName.replace(/\.xlsx?$/,'')+'_filled.xlsx';
+  XLSX.writeFile(wb, outName);
+  document.getElementById('merge-btn').textContent=`✓ 已填入 ${filled} 行並下載`;
+}
+
 // ── History ──
 function getHistory(){try{return JSON.parse(localStorage.getItem('orderHistory')||'[]')}catch(e){return[]}}
-function saveHistory(h){try{localStorage.setItem('orderHistory',JSON.stringify(h))}catch(e){}}
-
+function saveHistoryData(h){try{localStorage.setItem('orderHistory',JSON.stringify(h))}catch(e){}}
 function saveToHistory(){
   if(!orders.length)return;
   const h=getHistory();
   const total=orders.reduce((s,o)=>s+(Number(o.total)||0),0);
-  const names=files.map(f=>f.name).join(', ');
-  h.unshift({
-    id:Date.now(),
-    date:new Date().toLocaleString('zh-TW'),
-    title:names||'訂單記錄',
-    count:orders.length,
-    total:Math.round(total),
-    orders:orders
-  });
-  saveHistory(h.slice(0,50)); // 最多保留 50 筆
-  alert(`✓ 已儲存「${names}」到歷史記錄`);
+  const names=files.map(f=>f.name).join(', ')||'訂單記錄';
+  h.unshift({id:Date.now(),date:new Date().toLocaleString('zh-TW'),title:names,count:orders.length,total:Math.round(total),orders});
+  saveHistoryData(h.slice(0,50));
+  alert(`✓ 已儲存「${names}」`);
   renderHistory();
 }
-
 function renderHistory(){
   const h=getHistory();
   const el=document.getElementById('hist-list');
@@ -438,10 +848,8 @@ function renderHistory(){
       <button class="hist-del" onclick="deleteHistory(event,${item.id})">×</button>
     </div>`).join('');
 }
-
 function loadHistory(id){
-  const h=getHistory();
-  const item=h.find(x=>x.id===id);
+  const item=getHistory().find(x=>x.id===id);
   if(!item)return;
   orders=item.orders;
   switchTab('parse');
@@ -449,14 +857,10 @@ function loadHistory(id){
   document.getElementById('prog-title').textContent=`已載入：${item.title}`;
   document.getElementById('prog-wrap').style.display='block';
   document.getElementById('plog').innerHTML=`<div class="ok">✓ 從歷史記錄載入 ${item.count} 筆</div>`;
+  renderXlsxMatchInfo();
 }
-
-function deleteHistory(e,id){
-  e.stopPropagation();
-  const h=getHistory().filter(x=>x.id!==id);
-  saveHistory(h);renderHistory();
-}
-function clearHistory(){if(confirm('確定清除所有歷史記錄？')){saveHistory([]);renderHistory()}}
+function deleteHistory(e,id){e.stopPropagation();saveHistoryData(getHistory().filter(x=>x.id!==id));renderHistory()}
+function clearHistory(){if(confirm('確定清除所有歷史記錄？')){saveHistoryData([]);renderHistory()}}
 
 // ── Export CSV ──
 function flattenOrders(os){
