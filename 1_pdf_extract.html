@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>步驟1｜PDF 抽文字</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<style>
+:root{--bg:#f8f9fa;--s:#fff;--s2:#f1f3f4;--bd:#dadce0;--tx:#202124;--mu:#80868b;--acc:#1a73e8;--ok:#1e8e3e;--ok-l:#e6f4ea;--err:#d93025;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Google Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh}
+.shell{max-width:760px;margin:0 auto;padding:2rem 1.5rem}
+.header{margin-bottom:1.5rem}
+.step-badge{display:inline-flex;align-items:center;gap:6px;background:var(--acc);color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-bottom:10px;letter-spacing:.04em}
+h1{font-size:24px;font-weight:600;margin-bottom:6px}
+.desc{font-size:13px;color:var(--mu)}
+.next-steps{display:flex;gap:8px;margin-top:8px;font-size:12px;color:var(--mu);align-items:center}
+.next-steps span{background:var(--s2);padding:3px 10px;border-radius:20px;border:1px solid var(--bd)}
+.next-steps span.cur{background:var(--acc);color:#fff;border-color:var(--acc)}
+.card{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.dz{border:2px dashed var(--bd);border-radius:var(--r);padding:2.5rem 1rem;text-align:center;cursor:pointer;position:relative;transition:all .15s}
+.dz:hover,.dz.drag{border-color:var(--acc);background:#e8f0fe}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-icon{font-size:36px;margin-bottom:10px;display:block;opacity:.4}
+.dz h3{font-size:15px;font-weight:500;margin-bottom:4px}
+.dz p{font-size:12px;color:var(--mu)}
+.flist{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.frow{display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);font-size:13px}
+.frow.done{border-color:#a8d5b5;background:#f0faf3}
+.frow.error{border-color:#f5c6c2;background:#fdf3f2}
+.nm{flex:1;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sz{font-size:11px;color:var(--mu);font-family:monospace}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.bw{background:var(--s2);color:var(--mu);border:1px solid var(--bd)}
+.br{background:#e8f0fe;color:var(--acc)}.bo{background:var(--ok-l);color:var(--ok)}.be{background:#fce8e6;color:var(--err)}
+.rmb{cursor:pointer;color:var(--mu);background:none;border:none;font-size:18px;padding:0 2px}.rmb:hover{color:var(--err)}
+.acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:#1557b0}.btn-p:disabled{background:#ccc;cursor:not-allowed}
+.btn-o{background:var(--s);color:var(--tx);border:1px solid var(--bd)}.btn-o:hover{background:var(--s2)}
+.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{background:#186e34}
+.pb-wrap{margin:12px 0 4px}
+.pb{height:4px;background:var(--bd);border-radius:2px;overflow:hidden}
+.pf{height:100%;background:var(--acc);border-radius:2px;transition:width .35s}
+.pb-txt{font-size:12px;color:var(--mu);margin-top:4px}
+/* Result area */
+.result-tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);margin-bottom:12px}
+.rtab{padding:7px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--mu)}
+.rtab.active{color:var(--acc);border-bottom-color:var(--acc);font-weight:500}
+.rtab-panel{display:none}.rtab-panel.active{display:block}
+.raw-txt{font-family:monospace;font-size:12px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:12px;white-space:pre-wrap;word-break:break-all;max-height:320px;overflow-y:auto;color:var(--tx)}
+.dedup-txt{font-family:monospace;font-size:12px;background:#f0faf3;border:1px solid #a8d5b5;border-radius:var(--r);padding:12px;white-space:pre-wrap;word-break:break-all;max-height:320px;overflow-y:auto;color:var(--tx)}
+.stat-row{display:flex;gap:16px;font-size:12px;color:var(--mu);margin-bottom:10px;flex-wrap:wrap}
+.stat-row b{color:var(--tx)}
+.copy-btn{padding:5px 12px;font-size:12px;background:var(--s);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;color:var(--tx)}
+.copy-btn:hover{background:var(--s2)}
+.copy-btn.copied{background:var(--ok-l);color:var(--ok);border-color:#a8d5b5}
+.file-result{margin-bottom:16px;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.file-result-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--s2);border-bottom:1px solid var(--bd);font-size:13px}
+.file-result-header .fname{font-weight:500}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.next-btn-wrap{background:var(--ok-l);border:1px solid #a8d5b5;border-radius:var(--r);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.next-btn-wrap p{font-size:13px;color:var(--ok);font-weight:500}
+.next-btn-wrap span{font-size:12px;color:var(--mu)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="header">
+    <div class="step-badge">STEP 1 / 3</div>
+    <h1>PDF 抽取文字</h1>
+    <p class="desc">上傳訂單 PDF，自動抽取文字並去除重複內容，儲存後傳給步驟 2 進行結構化解析。</p>
+    <div class="next-steps">
+      <span class="cur">① 抽取文字</span>
+      <span>→</span>
+      <span>② 結構化解析</span>
+      <span>→</span>
+      <span>③ 寫入試算表</span>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-title">上傳訂單 PDF</div>
+    <div class="dz" id="dz">
+      <input type="file" id="fi" accept=".pdf" multiple>
+      <span class="dz-icon">📂</span>
+      <h3>拖曳 PDF 到這裡</h3>
+      <p>可多選，支援批次上傳</p>
+    </div>
+    <div class="flist" id="fl"></div>
+    <div class="acts" id="acts" style="display:none">
+      <button class="btn btn-p" id="run-btn" onclick="startExtract()">🔍 開始抽取文字</button>
+      <button class="btn btn-o" onclick="clearAll()">清除</button>
+    </div>
+    <div id="prog-wrap" style="display:none">
+      <div class="pb-wrap">
+        <div class="pb"><div class="pf" id="pf" style="width:0%"></div></div>
+        <div class="pb-txt" id="pb-txt">處理中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section" style="display:none">
+    <div class="card">
+      <div class="card-title">抽取結果</div>
+      <div id="file-results"></div>
+    </div>
+
+    <!-- Next step -->
+    <div class="next-btn-wrap" id="next-wrap" style="display:none">
+      <div>
+        <p>✅ 所有 PDF 抽取完成！</p>
+        <span>文字已儲存，點右方按鈕前往步驟 2</span>
+      </div>
+      <button class="btn btn-ok" onclick="goToStep2()">前往步驟 2：結構化解析 →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+let files=[], extractedData=[];
+
+const dz=document.getElementById('dz'), fi=document.getElementById('fi');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');addFiles([...e.dataTransfer.files].filter(f=>f.name.endsWith('.pdf')))});
+fi.addEventListener('change',e=>{addFiles([...e.target.files]);fi.value=''});
+
+function addFiles(nf){
+  nf.forEach(f=>{if(!files.find(x=>x.name===f.name&&x.size===f.size))files.push(f)});
+  renderFiles();
+}
+function removeFile(i){files.splice(i,1);renderFiles()}
+function clearAll(){
+  files=[];extractedData=[];renderFiles();
+  document.getElementById('results-section').style.display='none';
+  document.getElementById('prog-wrap').style.display='none';
+  document.getElementById('next-wrap').style.display='none';
+}
+function renderFiles(){
+  document.getElementById('acts').style.display=files.length?'flex':'none';
+  document.getElementById('fl').innerHTML=files.map((f,i)=>`
+    <div class="frow" id="fr${i}">
+      <span>📄</span>
+      <span class="nm">${f.name}</span>
+      <span class="sz">${(f.size/1024).toFixed(1)} KB</span>
+      <span class="badge bw" id="bd${i}">待處理</span>
+      <button class="rmb" onclick="removeFile(${i})">×</button>
+    </div>`).join('');
+}
+function setBadge(i,c,t){const b=document.getElementById('bd'+i);if(b){b.className='badge '+c;b.textContent=t}}
+function setProg(p,t){document.getElementById('pf').style.width=p+'%';document.getElementById('pb-txt').textContent=t}
+
+async function extractText(file){
+  const ab=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
+  let pages=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const c=await page.getTextContent();
+    pages.push(c.items.map(i=>i.str).join(' '));
+  }
+  return pages.join('\n').trim();
+}
+
+function dedupText(txt){
+  for(let i=0;i<5;i++){
+    const prev=txt;
+    txt=txt.replace(/(\S+(?:\s+\S+){0,3})\s+\1/g,'$1');
+    if(txt===prev)break;
+  }
+  return txt.replace(/ {2,}/g,' ').trim();
+}
+
+async function startExtract(){
+  if(!files.length)return;
+  extractedData=[];
+  document.getElementById('prog-wrap').style.display='block';
+  document.getElementById('results-section').style.display='block';
+  document.getElementById('file-results').innerHTML='';
+  document.getElementById('next-wrap').style.display='none';
+  document.getElementById('run-btn').disabled=true;
+  document.getElementById('run-btn').innerHTML='<span class="spin"></span>抽取中…';
+
+  for(let i=0;i<files.length;i++){
+    setProg(Math.round(i/files.length*90),'抽取中 '+(i+1)+'/'+files.length+'：'+files[i].name);
+    setBadge(i,'br','抽取中…');
+    document.getElementById('fr'+i).classList.remove('done','error');
+    try{
+      const raw=await extractText(files[i]);
+      const clean=dedupText(raw);
+      extractedData.push({name:files[i].name,raw,clean});
+      setBadge(i,'bo','✓ 完成');
+      document.getElementById('fr'+i).classList.add('done');
+      renderFileResult(i,files[i].name,raw,clean);
+    }catch(e){
+      setBadge(i,'be','❌ 失敗');
+      document.getElementById('fr'+i).classList.add('error');
+      renderFileError(i,files[i].name,e.message);
+    }
+  }
+
+  setProg(100,'完成！');
+  document.getElementById('run-btn').disabled=false;
+  document.getElementById('run-btn').innerHTML='🔍 重新抽取';
+
+  if(extractedData.length){
+    // Save to sessionStorage for step 2
+    try{sessionStorage.setItem('extractedData',JSON.stringify(extractedData))}catch(e){}
+    document.getElementById('next-wrap').style.display='flex';
+  }
+}
+
+function renderFileResult(idx,name,raw,clean){
+  const tabId='rt'+idx;
+  const div=document.createElement('div');
+  div.className='file-result';
+  div.innerHTML=`
+    <div class="file-result-header">
+      <span class="fname">📄 ${name}</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:var(--mu)">${raw.length} 字 → 去重後 ${clean.length} 字</span>
+        <button class="copy-btn" onclick="copyText(${idx},this)">複製去重文字</button>
+      </div>
+    </div>
+    <div style="padding:12px">
+      <div class="result-tabs">
+        <div class="rtab active" onclick="switchRtab('${tabId}','raw',this)">原始文字</div>
+        <div class="rtab" onclick="switchRtab('${tabId}','clean',this)">去重後</div>
+      </div>
+      <div id="${tabId}-raw" class="rtab-panel active">
+        <div class="raw-txt">${escHtml(raw)}</div>
+      </div>
+      <div id="${tabId}-clean" class="rtab-panel">
+        <div class="dedup-txt">${escHtml(clean)}</div>
+      </div>
+    </div>`;
+  document.getElementById('file-results').appendChild(div);
+}
+
+function renderFileError(idx,name,msg){
+  const div=document.createElement('div');
+  div.className='file-result';
+  div.innerHTML=`
+    <div class="file-result-header">
+      <span class="fname">📄 ${name}</span>
+      <span style="color:var(--err);font-size:12px">❌ 抽取失敗</span>
+    </div>
+    <div style="padding:12px;font-size:12px;color:var(--err)">${escHtml(msg)}</div>`;
+  document.getElementById('file-results').appendChild(div);
+}
+
+function switchRtab(tabId,panel,el){
+  document.querySelectorAll('#'+tabId+'-raw, #'+tabId+'-clean').forEach(p=>p.classList.remove('active'));
+  document.getElementById(tabId+'-'+panel).classList.add('active');
+  el.closest('.result-tabs').querySelectorAll('.rtab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function copyText(idx,btn){
+  const text=extractedData[idx]?.clean||'';
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✓ 已複製';
+    btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='複製去重文字';btn.classList.remove('copied')},2000);
+  }).catch(()=>{
+    // fallback
+    const ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    btn.textContent='✓ 已複製';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='複製去重文字';btn.classList.remove('copied')},2000);
+  });
+}
+
+function escHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function goToStep2(){
+  // Save data and redirect
+  try{sessionStorage.setItem('extractedData',JSON.stringify(extractedData))}catch(e){}
+  window.location.href='2_parse.html';
+}
+</script>
+</body>
+</html>
