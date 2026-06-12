@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>步驟2｜結構化解析</title>
+<style>
+:root{--bg:#f8f9fa;--s:#fff;--s2:#f1f3f4;--bd:#dadce0;--tx:#202124;--mu:#80868b;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--err:#d93025;--err-l:#fce8e6;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Google Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh}
+.shell{max-width:760px;margin:0 auto;padding:2rem 1.5rem}
+.step-badge{display:inline-flex;align-items:center;gap:6px;background:#34a853;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-bottom:10px;letter-spacing:.04em}
+h1{font-size:24px;font-weight:600;margin-bottom:6px}
+.desc{font-size:13px;color:var(--mu)}
+.next-steps{display:flex;gap:8px;margin-top:8px;font-size:12px;color:var(--mu);align-items:center;flex-wrap:wrap}
+.next-steps span{background:var(--s2);padding:3px 10px;border-radius:20px;border:1px solid var(--bd)}
+.next-steps span.done{background:var(--ok-l);color:var(--ok);border-color:#a8d5b5}
+.next-steps span.cur{background:#34a853;color:#fff;border-color:#34a853}
+.card{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:#1557b0}.btn-p:disabled{background:#ccc;cursor:not-allowed}
+.btn-o{background:var(--s);color:var(--tx);border:1px solid var(--bd)}.btn-o:hover{background:var(--s2)}
+.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{background:#186e34}
+.btn-sm{padding:5px 12px;font-size:12px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.inp-area{width:100%;min-height:140px;padding:10px 12px;font-size:12px;font-family:monospace;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);resize:vertical;outline:none;line-height:1.6}
+.inp-area:focus{border-color:var(--acc)}
+.source-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.sb-ok{background:var(--ok-l);color:var(--ok);border:1px solid #a8d5b5}
+.sb-manual{background:var(--acc-l);color:var(--acc);border:1px solid #aecbfa}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.field-row{display:flex;flex-direction:column;gap:3px}
+.field-row.full{grid-column:span 2}
+.field-label{font-size:11px;color:var(--mu);font-weight:500}
+.field-val{padding:7px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);font-size:13px;color:var(--tx);font-family:monospace}
+.field-val.editable{background:var(--s);cursor:text}
+.field-val.editable:focus{border-color:var(--acc);outline:none}
+.items-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.items-table th{background:var(--s2);padding:7px 10px;text-align:left;font-weight:500;border-bottom:1px solid var(--bd);color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.items-table td{padding:7px 10px;border-bottom:1px solid var(--bd)}
+.items-table td input{width:100%;border:none;background:transparent;font-size:12px;font-family:monospace;color:var(--tx);outline:none}
+.items-table td input:focus{background:var(--acc-l);border-radius:4px}
+.items-table tr:last-child td{border-bottom:none}
+.sum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.sum-cell{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:8px 10px}
+.sum-cell .sl{font-size:10px;color:var(--mu);margin-bottom:3px}
+.sum-cell .sv{font-size:14px;font-weight:500;font-family:monospace}
+.sum-cell .sv input{width:100%;border:none;background:transparent;font-size:14px;font-weight:500;font-family:monospace;color:var(--tx);outline:none}
+.alert{padding:10px 14px;border-radius:var(--r);font-size:13px;margin-bottom:12px}
+.alert-warn{background:#fef7e0;border:1px solid #fdd663;color:#7d4f00}
+.alert-ok{background:var(--ok-l);border:1px solid #a8d5b5;color:var(--ok)}
+.next-btn-wrap{background:var(--ok-l);border:1px solid #a8d5b5;border-radius:var(--r);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:1rem}
+.next-btn-wrap p{font-size:13px;color:var(--ok);font-weight:500}
+.next-btn-wrap span{font-size:12px;color:var(--mu)}
+.parse-result{display:none}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px}
+.tok{background:var(--ok-l);color:var(--ok)}.tinfo{background:var(--acc-l);color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div style="margin-bottom:1.5rem">
+    <div class="step-badge">STEP 2 / 3</div>
+    <h1>結構化解析</h1>
+    <p class="desc">將抽取的文字解析成欄位，可手動修正後傳給步驟 3 寫入試算表。</p>
+    <div class="next-steps">
+      <span class="done">✓ 抽取文字</span>
+      <span>→</span>
+      <span class="cur">② 結構化解析</span>
+      <span>→</span>
+      <span>③ 寫入試算表</span>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="card">
+    <div class="card-title">訂單文字輸入</div>
+    <div id="source-info" style="margin-bottom:10px;display:none"></div>
+    <textarea class="inp-area" id="txt-input" placeholder="從步驟 1 複製去重後的文字貼到這裡，或直接貼上訂單文字…"></textarea>
+    <div class="acts">
+      <button class="btn btn-p" id="parse-btn" onclick="doParse()">🔍 解析</button>
+      <button class="btn btn-o" onclick="clearInput()">清除</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="parse-result" id="parse-result">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="card-title" style="margin:0">訂單資訊 <span style="font-size:11px;color:var(--mu);font-weight:400">（可直接點擊修改）</span></div>
+        <button class="btn btn-sm btn-o" onclick="reparse()">重新解析</button>
+      </div>
+
+      <!-- Basic info -->
+      <div class="field-grid">
+        <div class="field-row">
+          <div class="field-label">訂單編號</div>
+          <input class="field-val editable" id="f-order_id" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">訂單日期</div>
+          <input class="field-val editable" id="f-order_date" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">訂單狀態</div>
+          <input class="field-val editable" id="f-order_status" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">付款狀態</div>
+          <input class="field-val editable" id="f-payment_status" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">訂購人</div>
+          <input class="field-val editable" id="f-buyer_name" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">電話</div>
+          <input class="field-val editable" id="f-buyer_phone" type="text">
+        </div>
+        <div class="field-row full">
+          <div class="field-label">Email</div>
+          <input class="field-val editable" id="f-buyer_email" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">收件人</div>
+          <input class="field-val editable" id="f-recipient" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">收件人電話</div>
+          <input class="field-val editable" id="f-recipient_phone" type="text">
+        </div>
+        <div class="field-row full">
+          <div class="field-label">收件地址</div>
+          <input class="field-val editable" id="f-address" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">送貨方式</div>
+          <input class="field-val editable" id="f-shipping_method" type="text">
+        </div>
+        <div class="field-row">
+          <div class="field-label">付款方式</div>
+          <input class="field-val editable" id="f-payment_method" type="text">
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:4px">商品明細</div>
+      <div style="overflow-x:auto">
+        <table class="items-table" id="items-table">
+          <thead>
+            <tr>
+              <th style="width:36%">商品名稱</th>
+              <th style="width:18%">貨號</th>
+              <th style="width:8%">數量</th>
+              <th style="width:14%">單價</th>
+              <th style="width:14%">小計</th>
+              <th style="width:10%"></th>
+            </tr>
+          </thead>
+          <tbody id="items-body"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-sm btn-o" style="margin-top:8px" onclick="addItemRow()">+ 新增商品</button>
+
+      <!-- Amounts -->
+      <div style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:16px">金額</div>
+      <div class="sum-grid">
+        <div class="sum-cell"><div class="sl">訂單小計</div><div class="sv"><input id="f-order_subtotal" type="text"></div></div>
+        <div class="sum-cell"><div class="sl">折抵</div><div class="sv"><input id="f-discount" type="text"></div></div>
+        <div class="sum-cell"><div class="sl">運費</div><div class="sv"><input id="f-shipping_fee" type="text"></div></div>
+        <div class="sum-cell" style="border-color:var(--acc)"><div class="sl" style="color:var(--acc)">合計</div><div class="sv" style="color:var(--acc)"><input id="f-total" type="text"></div></div>
+      </div>
+    </div>
+
+    <!-- Next -->
+    <div class="next-btn-wrap">
+      <div>
+        <p>✅ 確認資料無誤後，前往步驟 3</p>
+        <span>將解析結果寫入 Google 試算表</span>
+      </div>
+      <button class="btn btn-ok" onclick="goToStep3()">前往步驟 3：寫入試算表 →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Load from sessionStorage if available
+window.addEventListener('DOMContentLoaded',()=>{
+  try{
+    const data=JSON.parse(sessionStorage.getItem('extractedData')||'[]');
+    if(data.length){
+      // Use first file's clean text
+      document.getElementById('txt-input').value=data[0].clean||data[0].raw||'';
+      const info=document.getElementById('source-info');
+      info.style.display='block';
+      info.innerHTML='<span class="source-badge sb-ok">✓ 來自步驟 1：'+data[0].name+'</span>';
+      if(data.length>1){
+        info.innerHTML+=' <span style="font-size:12px;color:var(--mu)">共 '+data.length+' 份，目前解析第 1 份</span>';
+      }
+    }
+  }catch(e){}
+});
+
+function clearInput(){
+  document.getElementById('txt-input').value='';
+  document.getElementById('parse-result').style.display='none';
+  document.getElementById('source-info').style.display='none';
+}
+
+function doParse(){
+  const txt=document.getElementById('txt-input').value.trim();
+  if(!txt)return;
+  const order=parseOrder(txt,'');
+  fillForm(order);
+  document.getElementById('parse-result').style.display='block';
+  document.getElementById('parse-result').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function reparse(){
+  doParse();
+}
+
+function parseOrder(txt,filename){
+  // Dedup
+  for(let i=0;i<5;i++){
+    const prev=txt;
+    txt=txt.replace(/(\S+(?:\s+\S+){0,3})\s+\1/g,'$1');
+    if(txt===prev)break;
+  }
+  txt=txt.replace(/ {2,}/g,' ').trim();
+
+  const g=(re)=>(txt.match(re)?.[1]||'');
+
+  const order_id       = g(/#?(\d{10,})/);
+  const order_date     = g(/(\d{4}-\d{2}-\d{2})/);
+  const order_status   = g(/訂單狀態[:\s]*(\S+)/);
+  const payment_status = g(/付款狀態[:\s]*(\S+)/);
+  const buyer_name     = (txt.match(/訂購人[:\s]*([^\s訂單EMAIL電話]+)/)?.[1]||'').trim();
+  const buyer_email    = g(/EMAIL[:\s]*([^\s]+@[^\s]+)/i);
+  const buyer_phone    = g(/電話號碼[:\s]*(\d+)/);
+  const address        = (txt.match(/運送至[:\s]*(.+?)(?:送貨方式|收件人)/s)?.[1]||'').replace(/\s+/g,' ').trim();
+  const recipient      = (txt.match(/收件人[:\s]*([^\s收件人電話]+)/)?.[1]||'').trim();
+  const recipient_phone= g(/收件人電話號碼[:\s]*(\d+)/);
+  const shipping_method= g(/送貨方式[:\s]*(\S+)/);
+  const payment_method = g(/付款方式[:\s]*(\S+)/);
+
+  // Items
+  const itemBlock=(txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)||[])[1]||'';
+  const skuRe=/([A-Z][A-Z0-9-]{4,})/g;
+  const skuMatches=[...itemBlock.matchAll(skuRe)];
+  const items=skuMatches.map((m,idx)=>{
+    const start=m.index;
+    const end=skuMatches[idx+1]?.index??itemBlock.length;
+    const seg=itemBlock.slice(Math.max(0,start-120),end).trim();
+    const sku=m[1];
+    const qtyM=seg.match(/(\d+)\s+NT\$/);
+    const priceM=seg.match(/NT\$([\d,]+)\s+NT\$([\d,]+)/);
+    const amtM=seg.match(/NT\$([\d,]+)\s*$/);
+    const name=seg.slice(0,seg.indexOf(sku)).replace(/\s+/g,' ').trim();
+    return{
+      name:name||sku,
+      sku,
+      qty:qtyM?parseInt(qtyM[1]):1,
+      unit_price:priceM?parseInt(priceM[1].replace(/,/g,'')):0,
+      subtotal:amtM?parseInt(amtM[1].replace(/,/g,'')):0
+    };
+  });
+
+  const order_subtotal = parseInt((g(/小計[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
+  const discount       = parseInt((g(/折抵[^:：]*[：:]\s*-\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
+  const shipping_fee   = parseInt((g(/運費[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
+  const total          = parseInt((g(/合計[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
+
+  return{order_id,order_date,order_status,payment_status,buyer_name,buyer_phone,buyer_email,recipient,recipient_phone,address,shipping_method,payment_method,items,order_subtotal,discount,shipping_fee,total,_source:filename};
+}
+
+function fillForm(o){
+  const fields=['order_id','order_date','order_status','payment_status','buyer_name','buyer_phone','buyer_email','recipient','recipient_phone','address','shipping_method','payment_method','order_subtotal','discount','shipping_fee','total'];
+  fields.forEach(f=>{
+    const el=document.getElementById('f-'+f);
+    if(el)el.value=o[f]||'';
+  });
+  // Items
+  const tbody=document.getElementById('items-body');
+  tbody.innerHTML='';
+  (o.items||[]).forEach(item=>addItemRow(item));
+}
+
+function addItemRow(item){
+  item=item||{name:'',sku:'',qty:'',unit_price:'',subtotal:''};
+  const tr=document.createElement('tr');
+  tr.innerHTML=`
+    <td><input type="text" value="${escAttr(item.name)}" placeholder="商品名稱"></td>
+    <td><input type="text" value="${escAttr(item.sku)}" placeholder="貨號"></td>
+    <td><input type="number" value="${item.qty||''}" placeholder="0"></td>
+    <td><input type="number" value="${item.unit_price||''}" placeholder="0"></td>
+    <td><input type="number" value="${item.subtotal||''}" placeholder="0"></td>
+    <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:var(--mu);font-size:16px">×</button></td>`;
+  document.getElementById('items-body').appendChild(tr);
+}
+
+function getFormData(){
+  const get=id=>document.getElementById('f-'+id)?.value||'';
+  const rows=[...document.getElementById('items-body').querySelectorAll('tr')];
+  const items=rows.map(tr=>{
+    const inputs=tr.querySelectorAll('input');
+    return{name:inputs[0].value,sku:inputs[1].value,qty:parseInt(inputs[2].value)||0,unit_price:parseInt(inputs[3].value)||0,subtotal:parseInt(inputs[4].value)||0};
+  }).filter(i=>i.name||i.sku);
+
+  return{
+    order_id:get('order_id'),
+    order_date:get('order_date'),
+    order_status:get('order_status'),
+    payment_status:get('payment_status'),
+    buyer_name:get('buyer_name'),
+    buyer_phone:get('buyer_phone'),
+    buyer_email:get('buyer_email'),
+    recipient:get('recipient'),
+    recipient_phone:get('recipient_phone'),
+    address:get('address'),
+    shipping_method:get('shipping_method'),
+    payment_method:get('payment_method'),
+    items,
+    order_subtotal:parseInt(get('order_subtotal'))||0,
+    discount:parseInt(get('discount'))||0,
+    shipping_fee:parseInt(get('shipping_fee'))||0,
+    total:parseInt(get('total'))||0,
+  };
+}
+
+function goToStep3(){
+  const order=getFormData();
+  try{sessionStorage.setItem('parsedOrders',JSON.stringify([order]))}catch(e){}
+  window.location.href='3_sheets.html';
+}
+
+function escAttr(t){return(t||'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+</script>
+</body>
+</html>
