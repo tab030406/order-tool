@@ -245,27 +245,20 @@ function parseOrder(txt,filename){
   const shipping_method= g(/送貨方式[:\s]*(\S+)/);
   const payment_method = g(/付款方式[:\s]*(\S+)/);
 
-  // Items
-  const itemBlock=(txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)||[])[1]||'';
-  const skuRe=/([A-Z][A-Z0-9-]{4,})/g;
-  const skuMatches=[...itemBlock.matchAll(skuRe)];
-  const items=skuMatches.map((m,idx)=>{
-    const start=m.index;
-    const end=skuMatches[idx+1]?.index??itemBlock.length;
-    const seg=itemBlock.slice(Math.max(0,start-120),end).trim();
-    const sku=m[1];
-    const qtyM=seg.match(/(\d+)\s+NT\$/);
-    const priceM=seg.match(/NT\$([\d,]+)\s+NT\$([\d,]+)/);
-    const amtM=seg.match(/NT\$([\d,]+)\s*$/);
-    const name=seg.slice(0,seg.indexOf(sku)).replace(/\s+/g,' ').trim();
-    return{
-      name:name||sku,
-      sku,
-      qty:qtyM?parseInt(qtyM[1]):1,
-      unit_price:priceM?parseInt(priceM[1].replace(/,/g,'')):0,
-      subtotal:amtM?parseInt(amtM[1].replace(/,/g,'')):0
-    };
-  });
+  // Items — fix fragmented SKU (e.g. "YLO- F" -> "YLO-F"), then parse
+  const itemBlock=((txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)||[])[1]||'')
+    .replace(/([A-Z0-9]{3,})-\s+([A-Z])/g,'$1-$2');
+  const itemRe=/([^NT\d][^0-9]*?)([A-Z][A-Z0-9]{3,}(?:-[A-Z0-9]+)*)\s+(\d+)(?:\s+NT\$[\d,]+)*\s+NT\$([\d,]+)\s+NT\$([\d,]+)/gs;
+  const items=[];
+  for(const m of itemBlock.matchAll(itemRe)){
+    items.push({
+      name:m[1].replace(/\s+/g,' ').trim()||m[2],
+      sku:m[2],
+      qty:parseInt(m[3]),
+      unit_price:parseInt(m[4].replace(/,/g,'')),
+      subtotal:parseInt(m[5].replace(/,/g,''))
+    });
+  }
 
   const order_subtotal = parseInt((g(/小計[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
   const discount       = parseInt((g(/折抵[^:：]*[：:]\s*-\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
