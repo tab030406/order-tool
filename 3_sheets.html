@@ -178,8 +178,9 @@ async function doUpload(){
   try{
     const res=await fetch(gasUrl,{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({orders})
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({orders}),
+      redirect:'follow'
     });
     const text=await res.text();
     let data;
