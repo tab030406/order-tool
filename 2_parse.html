@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>步驟2｜結構化解析 v2.1</title>
+<title>步驟2｜結構化解析 v2.2</title>
 <style>
 :root{--bg:#f8f9fa;--s:#fff;--s2:#f1f3f4;--bd:#dadce0;--tx:#202124;--mu:#80868b;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--err:#d93025;--err-l:#fce8e6;--r:8px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -62,7 +62,7 @@ h1{font-size:24px;font-weight:600;margin-bottom:6px}
 <div class="shell">
   <div style="margin-bottom:1.5rem">
     <div class="step-badge">STEP 2 / 3</div>
-    <h1>結構化解析 <span style="font-size:13px;font-weight:400;color:var(--mu)">v2.1</span></h1>
+    <h1>結構化解析 <span style="font-size:13px;font-weight:400;color:var(--mu)">v2.2</span></h1>
     <p class="desc">將抽取的文字解析成欄位，可手動修正後傳給步驟 3 寫入試算表。</p>
     <div class="next-steps">
       <span class="done" style="cursor:pointer" onclick="location.href='1_pdf_extract.html'">← ① 抽取文字</span>
@@ -247,7 +247,8 @@ function parseOrder(txt,filename){
 
   // Items — proper name extraction between previous item's last NT$ and current SKU
   const itemBlockRaw=(txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)||[])[1]||'';
-  const itemBlock=itemBlockRaw.replace(/([A-Z0-9]{3,})-\s+([A-Z])/g,'$1-$2');
+  let itemBlock=itemBlockRaw.replace(/([A-Z0-9]{3,})-\s+([A-Z])/g,'$1-$2');
+  itemBlock=itemBlock.replace(/商品貨號\s*數量\s*價格\s*小計/g,' ');
   const skuRe=/(?<!\w)([A-Z][A-Z0-9]{4,}(?:[-_][A-Z0-9]+)*)/g;
   const skus=[...itemBlock.matchAll(skuRe)];
   const items=[];
@@ -269,12 +270,14 @@ function parseOrder(txt,filename){
     name=name.replace(/^加購品\s*/,'').trim();
 
     const afterEnd=i<skus.length-1?skus[i+1].index:itemBlock.length;
-    const after=itemBlock.slice(m.index+sku.length,afterEnd);
-    const p3=after.match(/(\d+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)/);
-    const p2=after.match(/(\d+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)/);
+    const after=itemBlock.slice(m.index+sku.length,afterEnd).trim();
+    const p3=after.match(/^(\d+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)/);
+    const p2=after.match(/^(\d+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)/);
+    const p1=after.match(/^(\d+)\s+NT\$([\d,]+)/);
     let qty=1,unit_price=0,subtotal=0;
     if(p3){qty=parseInt(p3[1]);unit_price=parseInt(p3[3].replace(/,/g,''));subtotal=parseInt(p3[4].replace(/,/g,''))}
     else if(p2){qty=parseInt(p2[1]);unit_price=parseInt(p2[2].replace(/,/g,''));subtotal=parseInt(p2[3].replace(/,/g,''))}
+    else if(p1){qty=parseInt(p1[1]);const v=parseInt(p1[2].replace(/,/g,''));unit_price=v;subtotal=v}
     items.push({name:name||sku,sku,qty,unit_price,subtotal});
   });
 
