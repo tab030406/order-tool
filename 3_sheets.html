@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>步驟3｜寫入試算表</title>
+<style>
+:root{--bg:#f8f9fa;--s:#fff;--s2:#f1f3f4;--bd:#dadce0;--tx:#202124;--mu:#80868b;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--err:#d93025;--err-l:#fce8e6;--r:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Google Sans',sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh}
+.shell{max-width:760px;margin:0 auto;padding:2rem 1.5rem}
+.step-badge{display:inline-flex;align-items:center;gap:6px;background:#9334e6;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;margin-bottom:10px;letter-spacing:.04em}
+h1{font-size:24px;font-weight:600;margin-bottom:6px}
+.desc{font-size:13px;color:var(--mu)}
+.next-steps{display:flex;gap:8px;margin-top:8px;font-size:12px;color:var(--mu);align-items:center;flex-wrap:wrap}
+.next-steps span{background:var(--s2);padding:3px 10px;border-radius:20px;border:1px solid var(--bd)}
+.next-steps span.done{background:var(--ok-l);color:var(--ok);border-color:#a8d5b5;cursor:pointer}
+.next-steps span.cur{background:#9334e6;color:#fff;border-color:#9334e6}
+.card{background:var(--s);border:1px solid var(--bd);border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.inp{flex:1;padding:9px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);color:var(--tx);font-size:13px;font-family:monospace;outline:none}
+.inp:focus{border-color:var(--acc)}
+.as{font-size:11px;padding:2px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.as-ok{background:var(--ok-l);color:var(--ok)}.as-err{background:var(--err-l);color:var(--err)}.as-no{background:var(--s2);color:var(--mu);border:1px solid var(--bd)}
+.hint{font-size:11px;color:var(--mu);line-height:1.7}
+.hint a{color:var(--acc);text-decoration:none}.hint a:hover{text-decoration:underline}
+.hint code{background:var(--s2);padding:1px 5px;border-radius:3px;font-family:monospace}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn-p{background:var(--acc);color:#fff}.btn-p:hover{background:#1557b0}.btn-p:disabled{background:#ccc;cursor:not-allowed}
+.btn-o{background:var(--s);color:var(--tx);border:1px solid var(--bd)}.btn-o:hover{background:var(--s2)}
+.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover{background:#186e34}
+.acts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.order-preview{border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:10px}
+.op-head{padding:10px 14px;background:var(--s2);display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.op-head .nm{font-weight:500}
+.op-head .total{font-weight:600;color:var(--acc)}
+.op-body{padding:10px 14px;font-size:12px;color:var(--mu)}
+.op-body .item{display:flex;justify-content:space-between;padding:3px 0}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;background:var(--ok-l);color:var(--ok);margin-right:4px}
+.alert{padding:12px 16px;border-radius:var(--r);font-size:13px;margin-bottom:12px;display:none}
+.alert-ok{background:var(--ok-l);border:1px solid #a8d5b5;color:var(--ok)}
+.alert-err{background:var(--err-l);border:1px solid #f5c6c2;color:var(--err)}
+.alert-info{background:var(--acc-l);border:1px solid #aecbfa;color:var(--acc)}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--bd);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.gas-steps{font-size:12px;color:var(--mu);line-height:2;padding:8px 0}
+.success-box{background:var(--ok-l);border:1px solid #a8d5b5;border-radius:var(--r);padding:16px;text-align:center;display:none}
+.success-box .icon{font-size:32px;margin-bottom:8px}
+.success-box .msg{font-size:15px;font-weight:500;color:var(--ok);margin-bottom:4px}
+.success-box .sub{font-size:12px;color:var(--mu);margin-bottom:14px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div style="margin-bottom:1.5rem">
+    <div class="step-badge">STEP 3 / 3</div>
+    <h1>寫入 Google 試算表</h1>
+    <p class="desc">將解析好的訂單資料透過 Google Apps Script 寫入試算表。</p>
+    <div class="next-steps">
+      <span class="done" onclick="location.href='1_pdf_extract.html'">← ① 抽取文字</span>
+      <span class="done" onclick="location.href='2_parse.html'">← ② 結構化解析</span>
+      <span class="cur">③ 寫入試算表</span>
+    </div>
+  </div>
+
+  <!-- Setup -->
+  <div class="card">
+    <div class="card-title">⚙ Apps Script 網址（一次性設定，自動儲存）</div>
+    <div class="row">
+      <input type="text" class="inp" id="gas-url" placeholder="https://script.google.com/macros/s/xxx/exec" oninput="onUrlChange()">
+      <span class="as as-no" id="gas-st">未設定</span>
+    </div>
+    <div class="gas-steps" id="setup-guide">
+      <b>尚未設定？一次性步驟：</b><br>
+      1. 開啟 <a href="https://script.google.com" target="_blank">script.google.com</a> → 新專案<br>
+      2. 貼上 <code>google-apps-script.js</code> 程式碼 → 儲存<br>
+      3. 部署 → 新部署 → 類型：<b>網頁應用程式</b>，執行身分：我，存取權限：<b>任何人</b> → 部署<br>
+      4. 複製網址（結尾是 <code>/exec</code>）貼到上方欄位
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="card" id="preview-card" style="display:none">
+    <div class="card-title">準備寫入的訂單</div>
+    <div id="order-previews"></div>
+    <div class="acts">
+      <button class="btn btn-p" id="upload-btn" onclick="doUpload()">📤 寫入試算表</button>
+      <button class="btn btn-o" onclick="location.href='2_parse.html'">← 返回修改</button>
+    </div>
+  </div>
+
+  <div class="alert" id="alert-box"></div>
+
+  <!-- Success -->
+  <div class="success-box" id="success-box">
+    <div class="icon">✅</div>
+    <div class="msg" id="success-msg">寫入成功！</div>
+    <div class="sub" id="success-sub"></div>
+    <a class="btn btn-ok" id="sheet-link" href="#" target="_blank">📊 開啟 Google 試算表</a>
+    <button class="btn btn-o" onclick="location.href='1_pdf_extract.html'" style="margin-left:8px">處理下一份訂單 →</button>
+  </div>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded',()=>{
+  try{
+    const gas=localStorage.getItem('gasUrl')||'';
+    if(gas)document.getElementById('gas-url').value=gas;
+    onUrlChange();
+  }catch(e){}
+  loadOrders();
+});
+
+function onUrlChange(){
+  const gas=document.getElementById('gas-url').value.trim();
+  const st=document.getElementById('gas-st');
+  if(!gas){st.className='as as-no';st.textContent='未設定'}
+  else if(gas.startsWith('https://')&&gas.includes('script.google.com')){st.className='as as-ok';st.textContent='✓ 已設定';document.getElementById('setup-guide').style.display='none'}
+  else{st.className='as as-err';st.textContent='格式有誤'}
+  try{localStorage.setItem('gasUrl',gas)}catch(e){}
+  updateBtn();
+}
+function getGasUrl(){return document.getElementById('gas-url').value.trim()}
+
+let orders=[];
+function loadOrders(){
+  try{
+    orders=JSON.parse(sessionStorage.getItem('parsedOrders')||'[]');
+  }catch(e){orders=[]}
+
+  if(!orders.length){
+    showAlert('alert-err','❌ 找不到解析資料，請先回到步驟 2 完成解析');
+    return;
+  }
+  document.getElementById('preview-card').style.display='block';
+  renderPreviews();
+  updateBtn();
+}
+
+function nt(v){return(v!==''&&v!=null&&Number(v)!==0)?'NT$'+Math.round(Number(v)).toLocaleString():'—'}
+
+function renderPreviews(){
+  document.getElementById('order-previews').innerHTML=orders.map(o=>`
+    <div class="order-preview">
+      <div class="op-head">
+        <span class="nm">${o.buyer_name||'—'}　<span style="color:var(--mu);font-size:11px;font-family:monospace">#${o.order_id}</span></span>
+        <span class="total">${nt(o.total)}</span>
+      </div>
+      <div class="op-body">
+        <div style="margin-bottom:6px"><span class="tag">${o.order_status||''}</span><span class="tag">${o.payment_status||''}</span></div>
+        ${(o.items||[]).map(item=>`<div class="item"><span>${item.name} ×${item.qty}</span><span>${nt(item.subtotal)}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function updateBtn(){
+  const gas=getGasUrl();
+  document.getElementById('upload-btn').disabled=!(gas.startsWith('https://')&&orders.length>0);
+}
+
+function showAlert(cls,msg){
+  const el=document.getElementById('alert-box');
+  el.className='alert '+cls;
+  el.innerHTML=msg;
+  el.style.display='block';
+}
+
+async function doUpload(){
+  const gasUrl=getGasUrl();
+  if(!gasUrl||!orders.length)return;
+
+  const btn=document.getElementById('upload-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin"></span>上傳中…';
+  showAlert('alert-info','<span class="spin"></span> 正在寫入 Google 試算表…');
+
+  try{
+    const res=await fetch(gasUrl,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({orders})
+    });
+    const text=await res.text();
+    let data;
+    try{data=JSON.parse(text)}catch(e){throw new Error('回應非JSON：'+text.slice(0,150))}
+
+    if(data.success){
+      document.getElementById('alert-box').style.display='none';
+      document.getElementById('preview-card').style.display='none';
+      document.getElementById('success-box').style.display='block';
+      document.getElementById('success-msg').textContent='✅ 已寫入 '+data.addedRows+' 行資料！';
+      document.getElementById('success-sub').textContent=orders.length+' 筆訂單成功寫入試算表';
+      document.getElementById('sheet-link').href=data.spreadsheetUrl;
+      // Clear session data
+      try{sessionStorage.removeItem('extractedData');sessionStorage.removeItem('parsedOrders')}catch(e){}
+    }else{
+      throw new Error(data.error||'寫入失敗');
+    }
+  }catch(e){
+    showAlert('alert-err','❌ 上傳失敗：'+e.message+'<br><span style="font-size:11px">請確認 Apps Script 網址正確，且部署的存取權限為「任何人」</span>');
+    btn.disabled=false;
+    btn.innerHTML='📤 寫入試算表';
+  }
+}
+</script>
+</body>
+</html>
