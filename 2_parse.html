@@ -65,7 +65,7 @@ h1{font-size:24px;font-weight:600;margin-bottom:6px}
     <h1>結構化解析</h1>
     <p class="desc">將抽取的文字解析成欄位，可手動修正後傳給步驟 3 寫入試算表。</p>
     <div class="next-steps">
-      <span class="done">✓ 抽取文字</span>
+      <span class="done" style="cursor:pointer" onclick="location.href='1_pdf_extract.html'">← ① 抽取文字</span>
       <span>→</span>
       <span class="cur">② 結構化解析</span>
       <span>→</span>
@@ -245,20 +245,36 @@ function parseOrder(txt,filename){
   const shipping_method= g(/送貨方式[:\s]*(\S+)/);
   const payment_method = g(/付款方式[:\s]*(\S+)/);
 
-  // Items — fix fragmented SKU (e.g. "YLO- F" -> "YLO-F"), then parse
-  const itemBlock=((txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)||[])[1]||'')
-    .replace(/([A-Z0-9]{3,})-\s+([A-Z])/g,'$1-$2');
-  const itemRe=/([^NT\d][^0-9]*?)([A-Z][A-Z0-9]{3,}(?:-[A-Z0-9]+)*)\s+(\d+)(?:\s+NT\$[\d,]+)*\s+NT\$([\d,]+)\s+NT\$([\d,]+)/gs;
+  // Items — proper name extraction between previous item's last NT$ and current SKU
+  const itemBlockRaw=(txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)||[])[1]||'';
+  const itemBlock=itemBlockRaw.replace(/([A-Z0-9]{3,})-\s+([A-Z])/g,'$1-$2');
+  const skuRe=/(?<!\w)([A-Z][A-Z0-9]{4,}(?:-[A-Z0-9]+)*)/g;
+  const skus=[...itemBlock.matchAll(skuRe)];
   const items=[];
-  for(const m of itemBlock.matchAll(itemRe)){
-    items.push({
-      name:m[1].replace(/\s+/g,' ').trim()||m[2],
-      sku:m[2],
-      qty:parseInt(m[3]),
-      unit_price:parseInt(m[4].replace(/,/g,'')),
-      subtotal:parseInt(m[5].replace(/,/g,''))
-    });
-  }
+  skus.forEach((m,i)=>{
+    const sku=m[1];
+    let nameRaw;
+    if(i===0){
+      nameRaw=itemBlock.slice(0,m.index);
+    }else{
+      const prevEnd=skus[i-1].index+skus[i-1][0].length;
+      const seg=itemBlock.slice(prevEnd,m.index);
+      const ntMatches=[...seg.matchAll(/NT\$[\d,]+/g)];
+      const cut=ntMatches.length?prevEnd+ntMatches[ntMatches.length-1].index+ntMatches[ntMatches.length-1][0].length:prevEnd;
+      nameRaw=itemBlock.slice(cut,m.index);
+    }
+    let name=nameRaw.replace(/\s+/g,' ').trim();
+    name=name.replace(/\s*\*\d+包\s*$/,'').trim();
+
+    const afterEnd=i<skus.length-1?skus[i+1].index:itemBlock.length;
+    const after=itemBlock.slice(m.index+sku.length,afterEnd);
+    const p3=after.match(/(\d+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)/);
+    const p2=after.match(/(\d+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)/);
+    let qty=1,unit_price=0,subtotal=0;
+    if(p3){qty=parseInt(p3[1]);unit_price=parseInt(p3[3].replace(/,/g,''));subtotal=parseInt(p3[4].replace(/,/g,''))}
+    else if(p2){qty=parseInt(p2[1]);unit_price=parseInt(p2[2].replace(/,/g,''));subtotal=parseInt(p2[3].replace(/,/g,''))}
+    items.push({name:name||sku,sku,qty,unit_price,subtotal});
+  });
 
   const order_subtotal = parseInt((g(/小計[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
   const discount       = parseInt((g(/折抵[^:：]*[：:]\s*-\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
