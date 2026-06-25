@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>步驟2｜結構化解析 v3.0</title>
+<title>步驟2｜結構化解析 v3.1</title>
 <style>
 :root{--bg:#f8f9fa;--s:#fff;--s2:#f1f3f4;--bd:#dadce0;--tx:#202124;--mu:#80868b;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--err:#d93025;--err-l:#fce8e6;--r:8px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -173,7 +173,7 @@ function parseOrder(txt,filename){
   let itemBlock=itemBlockRaw.replace(/([A-Z0-9]{3,})-\s+([A-Z])/g,'$1-$2');
   itemBlock=itemBlock.replace(/商品貨號\s*數量\s*價格\s*小計/g,' ');
 
-  const skuRe=/(?<!\w)([A-Z][A-Z0-9]{4,}(?:[-_][A-Z0-9]+)*)/g;
+  const skuRe=/(?<!\w)([A-Z][A-Z0-9]{4,}(?:[-_/][A-Z0-9]+)*)/g;
   const skus=[...itemBlock.matchAll(skuRe)];
   const items=[];
   skus.forEach((m,i)=>{
@@ -206,11 +206,52 @@ function parseOrder(txt,filename){
   });
 
   const order_subtotal = parseInt((g(/小計[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
-  const discount       = parseInt((g(/折抵[^:：]*[：:]\s*-\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
+
+  // 折扣可能有多種：折抵購物金、點數折現等，全部抓出來加總
+  const discountRe=/(折抵[^:：\d]*|點數折現[^:：\d]*|優惠[^:：\d]*折[扣現][^:：\d]*)[：:]\s*-?\s*NT\$([\d,]+)/g;
+  const discountBreakdown=[];
+  let dm;
+  while((dm=discountRe.exec(txt))!==null){
+    discountBreakdown.push({label:dm[1].trim(),amount:parseInt(dm[2].replace(/,/g,''))});
+  }
+  const discount=discountBreakdown.reduce((s,d)=>s+d.amount,0);
+
   const shipping_fee   = parseInt((g(/運費[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
   const total           = parseInt((g(/合計[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
 
-  return{order_id,order_date,order_status,payment_status,buyer_name,buyer_phone,buyer_email,recipient,recipient_phone,address,shipping_method,payment_method,items,order_subtotal,discount,shipping_fee,total,_source:filename};
+  // 將折扣依商品小計比例分攤，重新計算每筆單價與小計
+  if(discount>0 && order_subtotal>0 && items.length){
+    let allocatedSum=0;
+    items.forEach((item,idx)=>{
+      const ratio=item.subtotal/order_subtotal;
+      let allocated=Math.round(discount*ratio*10000)/10000; // 取4位小數做分攤計算
+      if(idx===items.length-1){
+        // 最後一筆用餘數補齊，避免四捨五入誤差
+        allocated=discount-allocatedSum;
+      }else{
+        allocatedSum+=allocated;
+      }
+      const newSubtotal=Math.round(item.subtotal-allocated);
+      const newUnitPrice=item.qty?Math.round((newSubtotal/item.qty)*10000)/10000:newSubtotal;
+      item.orig_subtotal=item.subtotal;
+      item.orig_unit_price=item.unit_price;
+      item.subtotal=newSubtotal;
+      item.unit_price=newUnitPrice;
+    });
+  }
+
+  // 驗證：各小計加總應等於合計，若不同則微調最後一筆
+  const sumCheck=items.reduce((s,i)=>s+i.subtotal,0);
+  const expectedTotal=order_subtotal-discount+shipping_fee;
+  if(items.length && sumCheck!==expectedTotal){
+    const diff=expectedTotal-sumCheck;
+    items[items.length-1].subtotal+=diff;
+    if(items[items.length-1].qty){
+      items[items.length-1].unit_price=Math.round((items[items.length-1].subtotal/items[items.length-1].qty)*10000)/10000;
+    }
+  }
+
+  return{order_id,order_date,order_status,payment_status,buyer_name,buyer_phone,buyer_email,recipient,recipient_phone,address,shipping_method,payment_method,items,order_subtotal,discount,discountBreakdown,shipping_fee,total,_source:filename};
 }
 
 function escAttr(t){return(t||'').toString().replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
@@ -279,9 +320,10 @@ function buildOrderCard(entry,idx){
       <button class="btn btn-sm btn-o" style="margin-top:8px" onclick="addItemRow(${idx})">+ 新增商品</button>
 
       <div class="section-title">金額</div>
+      ${(o.discountBreakdown&&o.discountBreakdown.length>1)?`<div style="font-size:11px;color:var(--mu);margin-bottom:6px">折扣明細：${o.discountBreakdown.map(d=>d.label+' -NT$'+d.amount.toLocaleString()).join('　|　')}</div>`:''}
       <div class="sum-grid">
         <div class="sum-cell"><div class="sl">訂單小計</div><div class="sv"><input id="f-${idx}-order_subtotal" value="${o.order_subtotal||0}" oninput="recalcTotal(${idx})"></div></div>
-        <div class="sum-cell"><div class="sl">折抵</div><div class="sv"><input id="f-${idx}-discount" value="${o.discount||0}" oninput="recalcTotal(${idx})"></div></div>
+        <div class="sum-cell"><div class="sl">折抵（合計）</div><div class="sv"><input id="f-${idx}-discount" value="${o.discount||0}" oninput="recalcTotal(${idx})"></div></div>
         <div class="sum-cell"><div class="sl">運費</div><div class="sv"><input id="f-${idx}-shipping_fee" value="${o.shipping_fee||0}" oninput="recalcTotal(${idx})"></div></div>
         <div class="sum-cell" style="border-color:var(--acc)"><div class="sl" style="color:var(--acc)">合計</div><div class="sv" style="color:var(--acc)"><input id="f-${idx}-total" value="${o.total||0}" oninput="onTotalEdit(${idx})"></div></div>
       </div>
@@ -311,7 +353,7 @@ function addItemRow(idx,item){
     <td><input type="text" value="${escAttr(item.name)}" placeholder="商品名稱"></td>
     <td><input type="text" value="${escAttr(item.sku)}" placeholder="貨號"></td>
     <td><input type="number" value="${item.qty||''}" placeholder="0"></td>
-    <td><input type="number" value="${item.unit_price||''}" placeholder="0"></td>
+    <td><input type="number" step="0.0001" value="${item.unit_price||''}" placeholder="0"></td>
     <td><input type="number" value="${item.subtotal||''}" placeholder="0"></td>
     <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:var(--mu);font-size:16px">×</button></td>`;
   tbody.appendChild(tr);
