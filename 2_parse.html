@@ -199,9 +199,9 @@ function parseOrder(txt,filename){
     const p2=after.match(/^(\d+)\s+NT\$([\d,]+)\s+NT\$([\d,]+)/);
     const p1=after.match(/^(\d+)\s+NT\$([\d,]+)/);
     let qty=1,unit_price=0,subtotal=0;
-    if(p3){qty=parseInt(p3[1]);unit_price=parseInt(p3[3].replace(/,/g,''));subtotal=parseInt(p3[4].replace(/,/g,''))}
-    else if(p2){qty=parseInt(p2[1]);unit_price=parseInt(p2[2].replace(/,/g,''));subtotal=parseInt(p2[3].replace(/,/g,''))}
-    else if(p1){qty=parseInt(p1[1]);const v=parseInt(p1[2].replace(/,/g,''));unit_price=v;subtotal=v}
+    if(p3){qty=parseInt(p3[1]);unit_price=parseFloat(p3[3].replace(/,/g,''));subtotal=parseInt(p3[4].replace(/,/g,''))}
+    else if(p2){qty=parseInt(p2[1]);unit_price=parseFloat(p2[2].replace(/,/g,''));subtotal=parseInt(p2[3].replace(/,/g,''))}
+    else if(p1){qty=parseInt(p1[1]);const v=parseFloat(p1[2].replace(/,/g,''));unit_price=v;subtotal=v}
     items.push({name:name||sku,sku,qty,unit_price,subtotal});
   });
 
@@ -353,7 +353,7 @@ function addItemRow(idx,item){
     <td><input type="text" value="${escAttr(item.name)}" placeholder="商品名稱"></td>
     <td><input type="text" value="${escAttr(item.sku)}" placeholder="貨號"></td>
     <td><input type="number" value="${item.qty||''}" placeholder="0"></td>
-    <td><input type="number" step="0.0001" value="${item.unit_price||''}" placeholder="0"></td>
+    <td><input type="number" step="0.0001" value="${item.unit_price?parseFloat(item.unit_price).toFixed(4):''}" placeholder="0"></td>
     <td><input type="number" value="${item.subtotal||''}" placeholder="0"></td>
     <td><button onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:var(--mu);font-size:16px">×</button></td>`;
   tbody.appendChild(tr);
@@ -385,7 +385,7 @@ function collectFormData(idx){
   const rows=[...document.querySelectorAll('#items-body-'+idx+' tr')];
   const items=rows.map(tr=>{
     const inputs=tr.querySelectorAll('input');
-    return{name:inputs[0].value,sku:inputs[1].value,qty:parseInt(inputs[2].value)||0,unit_price:parseInt(inputs[3].value)||0,subtotal:parseInt(inputs[4].value)||0};
+    return{name:inputs[0].value,sku:inputs[1].value,qty:parseInt(inputs[2].value)||0,unit_price:parseFloat(parseFloat(inputs[3].value||0).toFixed(4))||0,subtotal:parseInt(inputs[4].value)||0};
   }).filter(i=>i.name||i.sku);
 
   return{
