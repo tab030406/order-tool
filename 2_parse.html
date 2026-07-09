@@ -195,18 +195,18 @@ function parseOrder(txt,filename){
 
     const afterEnd=i<skus.length-1?skus[i+1].index:itemBlock.length;
     const after=itemBlock.slice(m.index+sku.length,afterEnd).trim();
-    // Extract all NT$ amounts and qty from 'after'
-    const afterClean=after.replace(/[^\d\s,NT$]/g,' ').trim();
+    // Only extract prices BEFORE any Chinese text (next item name)
+    const afterNum=after.replace(/[\u4e00-\u9fff\u3000-\u303f【】（）].*/s,'').trim();
     const qtyM=after.match(/^\s*(\d+)\s+NT\$/);
-    const allPrices=[...after.matchAll(/NT\$([\d,]+)/g)].map(m=>parseInt(m[1].replace(/,/g,'')));
+    const allPrices=[...afterNum.matchAll(/NT\$([\d,]+)/g)].map(m=>parseInt(m[1].replace(/,/g,'')));
     const qty=qtyM?parseInt(qtyM[1]):1;
     let unit_price=0,subtotal=0;
     if(allPrices.length>=3){
-      // 3+ prices: orig, unit, subtotal
+      // 3 prices: orig / unit(售價) / subtotal
       unit_price=allPrices[1];
       subtotal=allPrices[2];
     }else if(allPrices.length===2){
-      // 2 prices: if equal → unit=sub, else first=unit, second=sub
+      // 2 prices: unit / subtotal (no discount, or same price)
       unit_price=allPrices[0];
       subtotal=allPrices[1];
     }else if(allPrices.length===1){
