@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>步驟2｜結構化解析 v3.1</title>
+<title>步驟2｜結構化解析 v3.2</title>
 <style>
 :root{--bg:#f8f9fa;--s:#fff;--s2:#f1f3f4;--bd:#dadce0;--tx:#202124;--mu:#80868b;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--err:#d93025;--err-l:#fce8e6;--r:8px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -160,7 +160,7 @@ function parseOrder(txt,filename){
   const order_date     = g(/(\d{4}-\d{2}-\d{2})/);
   const order_status   = g(/訂單狀態[:\s]*(\S+)/);
   const payment_status = g(/付款狀態[:\s]*(\S+)/);
-  const buyer_name     = (txt.match(/訂購人[:\s]*([^\s訂單EMAIL電話]+)/)?.[1]||'').trim();
+  const buyer_name     = (txt.match(/訂購人[:\s]*([^\n訂單EMAIL電話]+)/)?.[1]||'').replace(/\s+/g,' ').trim();
   const buyer_email    = g(/EMAIL[:\s]*([^\s]+@[^\s]+)/i);
   const buyer_phone    = g(/電話號碼[:\s]*(\d+)/);
   const address        = (txt.match(/運送至[:\s]*(.+?)(?:送貨方式|收件人)/s)?.[1]||'').replace(/\s+/g,' ').trim();
@@ -231,31 +231,30 @@ function parseOrder(txt,filename){
   const total           = parseInt((g(/合計[：:]\s*NT\$([\d,]+)/)||'0').replace(/,/g,''));
 
   // 將折扣依商品小計比例分攤，重新計算每筆單價與小計
+  // 折扣分攤：只分攤折抵金額，運費不分攤
   if(discount>0 && order_subtotal>0 && items.length){
     let allocatedSum=0;
     items.forEach((item,idx)=>{
       const ratio=item.subtotal/order_subtotal;
-      let allocated=Math.round(discount*ratio*10000)/10000; // 取4位小數做分攤計算
+      let allocated;
       if(idx===items.length-1){
-        // 最後一筆用餘數補齊，避免四捨五入誤差
-        allocated=discount-allocatedSum;
+        allocated=discount-allocatedSum; // 最後一筆用餘數確保精確
       }else{
+        allocated=Math.round(discount*ratio*10000)/10000;
         allocatedSum+=allocated;
       }
       const newSubtotal=Math.round(item.subtotal-allocated);
       const newUnitPrice=item.qty?Math.round((newSubtotal/item.qty)*10000)/10000:newSubtotal;
-      item.orig_subtotal=item.subtotal;
-      item.orig_unit_price=item.unit_price;
       item.subtotal=newSubtotal;
       item.unit_price=newUnitPrice;
     });
   }
 
-  // 驗證：各小計加總應等於合計，若不同則微調最後一筆
+  // 驗證：各商品小計加總應等於(訂單小計-折抵)，若有誤差則微調最後一筆
+  const afterDiscountTotal=order_subtotal-discount;
   const sumCheck=items.reduce((s,i)=>s+i.subtotal,0);
-  const expectedTotal=order_subtotal-discount+shipping_fee;
-  if(items.length && sumCheck!==expectedTotal){
-    const diff=expectedTotal-sumCheck;
+  if(items.length && sumCheck!==afterDiscountTotal && afterDiscountTotal>0){
+    const diff=afterDiscountTotal-sumCheck;
     items[items.length-1].subtotal+=diff;
     if(items[items.length-1].qty){
       items[items.length-1].unit_price=Math.round((items[items.length-1].subtotal/items[items.length-1].qty)*10000)/10000;
