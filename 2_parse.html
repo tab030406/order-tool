@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>步驟2｜結構化解析 v3.2</title>
+<title>步驟2｜結構化解析 v3.3</title>
 <style>
 :root{--bg:#f8f9fa;--s:#fff;--s2:#f1f3f4;--bd:#dadce0;--tx:#202124;--mu:#80868b;--acc:#1a73e8;--acc-l:#e8f0fe;--ok:#1e8e3e;--ok-l:#e6f4ea;--err:#d93025;--err-l:#fce8e6;--r:8px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -172,6 +172,7 @@ function parseOrder(txt,filename){
   const itemBlockRaw=(txt.match(/付款方式[:\s]*\S+(.*?)小計[：:]/s)||[])[1]||'';
   let itemBlock=itemBlockRaw.replace(/([A-Z0-9]{3,})-\s+([A-Z])/g,'$1-$2');
   itemBlock=itemBlock.replace(/商品貨號\s*數量\s*價格\s*小計/g,' ');
+  itemBlock=itemBlock.replace(/店家和顧客訂單通訊內容.*/s,'').trim();
 
   const skuRe=/(?<!\w)([A-Z][A-Z0-9]{4,}(?:[-_/][A-Z0-9]+)*)/g;
   const skus=[...itemBlock.matchAll(skuRe)];
@@ -206,12 +207,19 @@ function parseOrder(txt,filename){
       unit_price=allPrices[1];
       subtotal=allPrices[2];
     }else if(allPrices.length===2){
-      // 2 prices: unit / subtotal (no discount, or same price)
-      unit_price=allPrices[0];
-      subtotal=allPrices[1];
+      if(allPrices[0]===allPrices[1]){
+        // 相同價格：unit = sub
+        unit_price=allPrices[0]; subtotal=allPrices[1];
+      }else if(allPrices[1]===allPrices[0]*qty){
+        // prices[1] = prices[0]*qty → 單價×數量=小計
+        unit_price=allPrices[0]; subtotal=allPrices[1];
+      }else{
+        // prices[0]=原價, prices[1]=售價, subtotal=售價×數量
+        unit_price=allPrices[1]; subtotal=allPrices[1]*qty;
+      }
     }else if(allPrices.length===1){
       unit_price=allPrices[0];
-      subtotal=allPrices[0];
+      subtotal=allPrices[0]*qty;
     }
     items.push({name:name||sku,sku,qty,unit_price,subtotal});
   });
